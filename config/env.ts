@@ -1,0 +1,58 @@
+import { getEnv } from "@/utils/env.util";
+
+export const env = {
+  NODE_ENV: getEnv("NODE_ENV", { defaultValue: "development" }),
+
+  PORT: getEnv<number>("PORT", {
+    defaultValue: 3000,
+    type: "number",
+  }),
+
+  LOG_LEVEL: getEnv("LOG_LEVEL", {
+    defaultValue: "info",
+  }),
+
+  ENABLE_DOCS: getEnv<boolean>("ENABLE_DOCS", {
+    defaultValue: true,
+    type: "boolean",
+  }),
+
+  DATABASE_URL: getEnv("DATABASE_URL", {
+    required: true,
+  }),
+
+  // ── JWT ──────────────────────────────────────────────
+  ACCESS_TOKEN_SECRET: getEnv("ACCESS_TOKEN_SECRET", {
+    required: true,
+  }),
+
+  REFRESH_TOKEN_SECRET: getEnv("REFRESH_TOKEN_SECRET", {
+    required: true,
+  }),
+
+  ACCESS_TOKEN_EXPIRY: getEnv("ACCESS_TOKEN_EXPIRY", {
+    defaultValue: "15m",
+  }),
+
+  REFRESH_TOKEN_EXPIRY: getEnv("REFRESH_TOKEN_EXPIRY", {
+    defaultValue: "7d",
+  }),
+
+  JWT_ISSUER: getEnv("JWT_ISSUER", {
+    defaultValue: "crezio-api",
+  }),
+
+  // ── Redis ────────────────────────────────────────────
+  REDIS_HOST: getEnv("REDIS_HOST", {
+    defaultValue: "localhost",
+  }),
+
+  REDIS_PORT: getEnv<number>("REDIS_PORT", {
+    defaultValue: 6379,
+    type: "number",
+  }),
+
+  REDIS_PASSWORD: getEnv("REDIS_PASSWORD", {
+    required: true,
+  }),
+} as const;
