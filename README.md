@@ -40,7 +40,7 @@ A comprehensive, scalable backend API for mobile repair shop management across S
 - [File Upload & Storage](#-file-upload--storage)
 - [Testing](#-testing)
 - [Deployment](#-deployment)
-- [Scalability](#-scalability)
+- [Scalability plan](#-scalability)
 - [Security](#-security)
 - [Contributing](#-contributing)
 - [License](#-license)
