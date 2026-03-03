@@ -28,10 +28,13 @@ app.use(
 app.use(cookieParser());
 app.use(httpLoggerMiddleware);
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN?.split(",") ?? [],
+  credentials: true,
+}));
 app.use(compression({ threshold: 2048 }));
-if (process.env.environment === "production") {
-  app.set("trust proxy", 1); // trust first proxy
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
 }
 
 

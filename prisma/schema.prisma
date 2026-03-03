@@ -1,0 +1,186 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum RepairStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  READY_TO_TAKE
+  DELIVERED
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shops   Shop[]
+  users   User[]
+}
+
+model Shop {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users     User[]
+  customers Customer[]
+  devices   Device[]
+  repairs   Repair[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  shopId    String?
+
+  email     String   @unique
+  password  String
+  role      UserRole @default(TECHNICIAN)
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shop   Shop?  @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  repairs  Repair[]
+
+  @@index([tenantId])
+  @@index([shopId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  shopId    String
+
+  name      String
+  phone     String?
+  email     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  devices Device[]
+  repairs Repair[]
+
+  @@index([tenantId])
+  @@index([shopId])
+}
+
+model Device {
+  id        String   @id @default(cuid())
+  tenantId  String
+  shopId    String
+  customerId String
+
+  brand     String
+  model     String
+  imei      String?
+  serialNo  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  repairs  Repair[]
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@index([customerId])
+  @@unique([shopId, imei])
+}
+
+model Repair {
+  id          String       @id @default(cuid())
+  tenantId    String
+  shopId      String
+  customerId  String
+  deviceId    String
+
+  status      RepairStatus @default(NOT_STARTED)
+  issue       String?
+  diagnosis   String?
+  estimatedCost Int?
+  finalCost     Int?
+  technicianId  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  technician User?  @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  photos Photo[]
+  notifications Notification[]
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@index([deviceId])
+  @@index([customerId])
+  @@index([technicianId])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  tenantId  String
+  repairId  String
+
+  // store S3 URL or local URL
+  url       String
+  stage     String? // intake/before/during/after
+  createdAt DateTime @default(now())
+
+  repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([repairId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  repairId  String?
+
+  channel   String  // email/sms/whatsapp
+  to        String
+  message   String
+  status    String  @default("PENDING")
+
+  createdAt DateTime @default(now())
+  sentAt    DateTime?
+
+  repair Repair? @relation(fields: [repairId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([repairId])
+}
