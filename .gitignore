@@ -52,3 +52,5 @@ Thumbs.db
 **/docker-data/
 node_modules/
 .env
+
+/generated/prisma

@@ -1,6 +1,6 @@
 import pinoHttp from "pino-http";
-import { logger } from '@/config/logger.config';
-
+import type { IncomingMessage, ServerResponse } from "http";
+import { logger } from "@/config/logger.config";
 
 const httpLoggerMiddleware = pinoHttp({
   logger,
@@ -17,14 +17,14 @@ const httpLoggerMiddleware = pinoHttp({
     censor: "[REDACTED]",
   },
   serializers: {
-    req(req) {
+    req(req: IncomingMessage & { body?: unknown }) {
       return {
         method: req.method,
         url: req.url,
-        body: req.body,
+        body: (req as any).body,
       };
     },
-    res(res) {
+    res(res: ServerResponse) {
       return {
         statusCode: res.statusCode,
       };
