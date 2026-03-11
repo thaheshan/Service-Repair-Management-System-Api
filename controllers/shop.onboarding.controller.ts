@@ -1,138 +1,120 @@
-import { prisma } from "@/db/prisma";
-import { sendVerificationEmail } from "@/services/email.service";
-import bcrypt from "bcrypt";
+import {
+  generateShopIdsService,
+  registerShopService,
+  sendVerificationService,
+} from "@/services/shop/shop.onboarding.service";
+import {
+  generateShopIdsSchema,
+  registerShopSchema,
+  sendVerificationSchema,
+} from "@/validators/shop/shop.validator";
+import { logger } from "@/config/logger.config";
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 
 // BE-REG-01: POST /api/shop/generate-ids
 export const generateShopIds = async (req: Request, res: Response) => {
-  try {
-    const { shop_name, owner_email } = req.body;
-
-    if (!shop_name || !owner_email) {
-      return res.status(400).json({ success: false, message: "shop_name and owner_email are required" });
-    }
-
-    // Check for duplicate email
-    const existingUser = await prisma.user.findUnique({ where: { email: owner_email } });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: "Email already registered" });
-    }
-
-    // Generate unique IDs
-    const shop_id = uuidv4();
-    const tenant_id = uuidv4();
-
-    // Validate uniqueness against DB
-    const existingTenant = await prisma.tenant.findUnique({ where: { id: tenant_id } });
-    const existingShop = await prisma.shop.findUnique({ where: { id: shop_id } });
-
-    if (existingTenant || existingShop) {
-      return res.status(400).json({ success: false, message: "ID collision detected, please retry" });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: { shop_id, tenant_id },
+  const parsed = generateShopIdsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    logger.warn(`[generateShopIds] -> Validation failed: ${parsed.error.message}`);
+    return res.status(400).json({
+      success: false,
+      message: "Validation error",
+      errors: parsed.error.issues,
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Unexpected failure", error });
+  }
+
+  try {
+    const data = await generateShopIdsService(parsed.data);
+    return res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    logger.error(`[generateShopIds] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Unexpected failure",
+    });
   }
 };
 
 // BE-REG-02: POST /api/shop/register
 export const registerShop = async (req: Request, res: Response) => {
+  const parsed = registerShopSchema.safeParse(req.body);
+  if (!parsed.success) {
+    logger.warn(`[registerShop] -> Validation failed: ${parsed.error.message}`);
+    return res.status(400).json({
+      success: false,
+      message: "Validation error",
+      errors: parsed.error.issues,
+    });
+  }
+
   try {
-    const { shop_id, tenant_id, shop_name, brn, owner } = req.body;
-    if (!shop_id || !tenant_id || !shop_name || !owner?.name || !owner?.email || !owner?.password) {
-        return res.status(400).json({ success: false, message: "shop_id, tenant_id, shop_name and owner details are required" });
-    }
-
-    const hashedPassword = await bcrypt.hash(owner.password, 10);
-
-    // Atomic transaction - create Tenant, Shop and Owner User together
-    const result = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-        data: { id: tenant_id, name: shop_name }, // ← use shop_name
-    });
-
-    const shop = await tx.shop.create({
-        data: { id: shop_id, tenantId: tenant_id, name: shop_name, brn },
-     });
-
-    const user = await tx.user.create({
-        data: {
-        tenantId: tenant_id,
-        shopId: shop_id,
-        email: owner.email,
-        password: hashedPassword,
-        role: "ADMIN",
-        },
-        select: { id: true, email: true, role: true, tenantId: true, shopId: true },
-    });
-
-    return { tenant, shop, user };
-    });
-
-    // Send verification email after successful transaction
-    const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await prisma.emailVerificationToken.create({
-      data: { userId: result.user.id, token, expiresAt },
-    });
-
-    try {
-      await sendVerificationEmail(result.user.id, owner.email, token);
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-    }
-
-    res.status(200).json({
+    const data = await registerShopService(parsed.data);
+    return res.status(200).json({
       success: true,
       message: "Registration successful. Please verify your email.",
-      data: result,
+      data,
     });
   } catch (error: any) {
+    logger.error(`[registerShop] -> ${error.message}`);
     if (error.code === "P2002") {
       return res.status(400).json({ success: false, message: "Email already registered" });
     }
-    res.status(500).json({ success: false, message: "Failed transaction", error });
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Failed transaction",
+    });
   }
 };
 
 // BE-REG-03: POST /api/user/send-verification
 export const sendVerification = async (req: Request, res: Response) => {
+  const parsed = sendVerificationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    logger.warn(`[sendVerification] -> Validation failed: ${parsed.error.message}`);
+    return res.status(400).json({
+      success: false,
+      message: "Validation error",
+      errors: parsed.error.issues,
+    });
+  }
+
   try {
-    const { user_id, email } = req.body;
-
-    if (!user_id || !email) {
-      return res.status(400).json({ success: false, message: "user_id and email are required" });
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: user_id } });
-    if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
-    }
-
-    // Invalidate old tokens
-    await prisma.emailVerificationToken.updateMany({
-      where: { userId: user_id, used: false },
-      data: { used: true },
+    await sendVerificationService(parsed.data.user_id, parsed.data.email);
+    return res.status(200).json({ success: true, message: "Verification email sent" });
+  } catch (error: any) {
+    logger.error(`[sendVerification] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Email delivery failed",
     });
+  }
+};
+import { verifyEmailService } from "@/services/shop/shop.onboarding.service";
+import { verifyEmailSchema } from "@/validators/shop/shop.validator";
 
-    // Create new token
-    const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await prisma.emailVerificationToken.create({
-      data: { userId: user_id, token, expiresAt },
+// BE-REG-04: GET /api/user/verify-email?token=xxx
+export const verifyEmail = async (req: Request, res: Response) => {
+  const parsed = verifyEmailSchema.safeParse(req.query);
+  if (!parsed.success) {
+    logger.warn(`[verifyEmail] -> Validation failed: ${parsed.error.message}`);
+    return res.status(400).json({
+      success: false,
+      message: "Validation error",
+      errors: parsed.error.issues,
     });
+  }
 
-    await sendVerificationEmail(user_id, email, token);
-
-    res.status(200).json({ success: true, message: "Verification email sent" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Email delivery failed", error });
+  try {
+    await verifyEmailService(parsed.data.token);
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully",
+    });
+  } catch (error: any) {
+    logger.error(`[verifyEmail] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Unexpected failure",
+    });
   }
 };
