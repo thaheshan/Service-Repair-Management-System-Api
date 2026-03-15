@@ -34,10 +34,13 @@ model Tenant {
 
 model Shop {
   id        String   @id @default(cuid())
+  shopCode  String   @unique
   tenantId  String
   name      String
   address   String?
   phone     String?
+  isActive  Boolean  @default(true)
+  acceptsStaffRegistrations Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -56,7 +59,9 @@ model User {
   tenantId  String
   shopId    String?
 
-  email     String   @unique
+  fullName  String
+  phone     String?  @unique
+  email     String?  @unique
   password  String
   role      UserRole @default(TECHNICIAN)
   isActive  Boolean  @default(true)
