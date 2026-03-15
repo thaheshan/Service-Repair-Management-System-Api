@@ -1,8 +1,6 @@
 import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
 import repairsRouter from "@/routes/repairs.routes";
-import shopOnboardingRouter from "@/routes/shop.onboarding.routes";
-import shopsRouter from "@/routes/shops.routes";
-import userOnboardingRouter from "@/routes/user.onboarding.routes";
+import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import { Router } from "express";
 
@@ -15,9 +13,7 @@ router.get("/health", (_req, res) => {
 });
 
 router.use("/users", usersRouter);
-router.use("/shops", shopsRouter);
+router.use("/shops", shopRouter);
 router.use("/repairs", repairsRouter);
-router.use("/shop", shopOnboardingRouter);
-router.use("/user", userOnboardingRouter);
 
 export default router;

@@ -11,7 +11,7 @@ export const sendVerificationEmail = async (
   email: string,
   token: string
 ) => {
-  const verificationUrl = `${process.env.APP_URL}/api/user/verify-email?token=${token}`;
+  const verificationUrl = `${process.env.APP_URL}/api/users/verify-email?token=${token}`;
   let attempts = 0;
   let lastError: any = null;
 
@@ -24,7 +24,7 @@ export const sendVerificationEmail = async (
         subject: "Verify your email - SRM",
         html: `
           <h2>Email Verification</h2>
-          <p>Click the link below to verify your email. This link expires in 24 hours.</p>
+          <p>Click the link below to verify your email. This link expires in 30 minutes.</p>
           <a href="${verificationUrl}">${verificationUrl}</a>
         `,
       });
