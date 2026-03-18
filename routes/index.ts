@@ -1,6 +1,6 @@
 import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
 import repairsRouter from "@/routes/repairs.routes";
-import shopsRouter from "@/routes/shops.routes";
+import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
@@ -19,7 +19,7 @@ router.use("/auth", authRouter);
 router.use(authenticate);
 
 router.use("/users", usersRouter);
-router.use("/shops", shopsRouter);
+router.use("/shops", shopRouter);
 router.use("/repairs", repairsRouter);
 
 export default router;
