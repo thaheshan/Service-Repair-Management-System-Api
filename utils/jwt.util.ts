@@ -1,5 +1,5 @@
 import { env } from "@/config/env";
-import jwt from "jsonwebtoken";
+import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
 
 export type JwtRole = "ADMIN" | "MANAGER" | "TECHNICIAN" | "CUSTOMER";
 
@@ -11,10 +11,13 @@ export interface AccessTokenClaims {
 }
 
 export const signAccessToken = (claims: AccessTokenClaims): string => {
-  return jwt.sign(claims, env.ACCESS_TOKEN_SECRET, {
-    expiresIn: env.ACCESS_TOKEN_EXPIRY,
+  const secret: Secret = env.ACCESS_TOKEN_SECRET;
+  const options: SignOptions = {
+    expiresIn: env.ACCESS_TOKEN_EXPIRY as SignOptions["expiresIn"],
     issuer: env.JWT_ISSUER,
-  });
+  };
+
+  return jwt.sign(claims, secret, options);
 };
 
 export const verifyAccessTokenString = (token: string): AccessTokenClaims => {
