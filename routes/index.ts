@@ -14,9 +14,9 @@ router.get("/health", (_req, res) => {
   res.status(200).json({ success: true, status: "UP", timestamp: new Date().toISOString() });
 });
 
+router.use("/users", usersRouter);
+router.use("/shops", shopsRouter);
+router.use("/repairs", repairsRouter);
 router.use("/staff", staffRouter);
-router.use("/users", verifyAccessToken, requireRoles("ADMIN", "MANAGER"), usersRouter);
-router.use("/shops", verifyAccessToken, requireRoles("ADMIN", "MANAGER"), shopsRouter);
-router.use("/repairs", verifyAccessToken, requireRoles("ADMIN", "MANAGER", "TECHNICIAN"), repairsRouter);
 
 export default router;

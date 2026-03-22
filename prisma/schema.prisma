@@ -39,9 +39,9 @@ model Shop {
   name      String
   address   String?
   phone     String?
+  brn       String?  // Business Registration Number
   isActive  Boolean  @default(true)
   acceptsStaffRegistrations Boolean @default(true)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -65,13 +65,15 @@ model User {
   password  String
   role      UserRole @default(TECHNICIAN)
   isActive  Boolean  @default(true)
-
+  isEmailVerified Boolean @default(false)  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shop   Shop?  @relation(fields: [shopId], references: [id], onDelete: SetNull)
   repairs  Repair[]
+  emailVerificationTokens EmailVerificationToken[]
+  emailLogs               EmailLog[]
 
   @@index([tenantId])
   @@index([shopId])
@@ -188,4 +190,32 @@ model Notification {
 
   @@index([tenantId])
   @@index([repairId])
+}
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+model EmailLog {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  type      String
+  status    String
+  attempts  Int      @default(1)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
