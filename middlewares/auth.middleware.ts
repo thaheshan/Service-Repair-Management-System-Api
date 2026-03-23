@@ -1,15 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "@/utils/jwt.util";
-
-type AuthUser = {
-  id: string;
-  email: string;
-  role: "ADMIN" | "MANAGER" | "TECHNICIAN" | "CUSTOMER";
-  tenantId: string;
-  shopId: string | null;
-};
-
-type AuthenticatedRequest = Request & { user?: AuthUser };
+import type { AuthRequest, AuthUser } from "@/types/auth.types";
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
@@ -21,7 +12,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
   try {
     const claims = verifyAccessToken(token);
-    (req as AuthenticatedRequest).user = {
+    (req as AuthRequest).user = {
       id: claims.sub,
       email: claims.email,
       role: claims.role,
@@ -36,7 +27,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
 export function authorizeRoles(...roles: Array<AuthUser["role"]>) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const authReq = req as AuthenticatedRequest;
+    const authReq = req as AuthRequest;
     if (!authReq.user) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
