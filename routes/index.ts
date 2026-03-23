@@ -2,6 +2,7 @@ import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
 import repairsRouter from "@/routes/repairs.routes";
 import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
+import dashboardRouter from "@/routes/dashboard.routes";
 import { Router } from "express";
 
 const router = Router();
@@ -15,5 +16,6 @@ router.get("/health", (_req, res) => {
 router.use("/users", usersRouter);
 router.use("/shops", shopRouter);
 router.use("/repairs", repairsRouter);
+router.use("/v1/dashboard", dashboardRouter);
 
 export default router;
