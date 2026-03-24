@@ -9,15 +9,15 @@ import {
   sendVerification,
 } from "@/controllers/shop.controller";
 import { Router } from "express";
+import { authorizeRoles } from "@/middlewares/auth.middleware";
 
 const router = Router();
 
-// CRUD
-router.get("/", getShops);
-router.get("/:id", getShopById);
-router.post("/", createShop);
-router.patch("/:id", updateShop);
-router.delete("/:id", deleteShop);
+router.get("/", authorizeRoles("ADMIN", "MANAGER"), getShops);
+router.get("/:id", authorizeRoles("ADMIN", "MANAGER"), getShopById);
+router.post("/", authorizeRoles("ADMIN", "MANAGER"), createShop);
+router.patch("/:id", authorizeRoles("ADMIN", "MANAGER"), updateShop);
+router.delete("/:id", authorizeRoles("ADMIN"), deleteShop);
 
 // Onboarding
 router.post("/generate-ids", generateShopIds);

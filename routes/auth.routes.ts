@@ -1,0 +1,15 @@
+import { loginRateLimiter } from "@/middlewares/rateLimit.middleware";
+import { authenticate } from "@/middlewares/auth.middleware";
+import { createInitialAdmin, login, logout, me, refresh } from "@/controllers/auth.controller";
+import { Router } from "express";
+
+const router = Router();
+
+router.post("/login", loginRateLimiter, login);
+router.post("/refresh", refresh);
+router.post("/logout", logout);
+router.get("/me", authenticate, me);
+router.post("/init-admin", createInitialAdmin);
+
+export default router;
+

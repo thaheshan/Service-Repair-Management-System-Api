@@ -1,8 +1,12 @@
-import { prisma } from "@/db/prisma";
 import {
+  createTenantShop,
+  deleteTenantShop,
   createShopIds,
+  getTenantShopById,
+  getTenantShops,
   shopRegister,
   sendEmailVerification,
+  updateTenantShop,
   validateEmailToken,
 } from "@/services/shop/shop.service";
 import {
@@ -12,61 +16,58 @@ import {
   verifyEmailSchema,
 } from "@/validators/shop/shop.validator";
 import { logger } from "@/config/logger.config";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
+import type { AuthRequest } from "@/types/auth.types";
 
-// CRUD
-export const getShops = async (req: Request, res: Response) => {
+export const getShops = async (req: AuthRequest, res: Response) => {
   try {
-    const shops = await prisma.shop.findMany();
+    const shops = await getTenantShops(req.user!.tenantId);
     res.status(200).json({ success: true, data: shops });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch shops", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to fetch shops" });
   }
 };
 
-export const getShopById = async (req: Request, res: Response) => {
+export const getShopById = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const shop = await prisma.shop.findUnique({ where: { id } });
-    if (!shop) return res.status(404).json({ success: false, message: "Shop not found" });
+    const shop = await getTenantShopById(id, req.user!.tenantId);
     res.status(200).json({ success: true, data: shop });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch shop", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to fetch shop" });
   }
 };
 
-export const createShop = async (req: Request, res: Response) => {
+export const createShop = async (req: AuthRequest, res: Response) => {
   try {
-    const { tenantId, name, address, phone } = req.body;
-    if (!tenantId || !name)
-      return res.status(400).json({ success: false, message: "tenantId and name are required" });
-    const shop = await prisma.shop.create({ data: { tenantId, name, address, phone } });
+    const { name, address, phone } = req.body;
+    if (!name)
+      return res.status(400).json({ success: false, message: "name is required" });
+    const shop = await createTenantShop(req.user!.tenantId, { name, address, phone });
     res.status(201).json({ success: true, data: shop });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create shop", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create shop" });
   }
 };
 
-export const updateShop = async (req: Request, res: Response) => {
+export const updateShop = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const { name, address, phone } = req.body;
-    const shop = await prisma.shop.update({ where: { id }, data: { name, address, phone } });
+    const shop = await updateTenantShop(id, req.user!.tenantId, { name, address, phone });
     res.status(200).json({ success: true, data: shop });
   } catch (error: any) {
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "Shop not found" });
-    res.status(500).json({ success: false, message: "Failed to update shop", error });
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to update shop" });
   }
 };
 
-export const deleteShop = async (req: Request, res: Response) => {
+export const deleteShop = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    await prisma.shop.delete({ where: { id } });
+    await deleteTenantShop(id, req.user!.tenantId);
     res.status(200).json({ success: true, message: "Shop deleted successfully" });
   } catch (error: any) {
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "Shop not found" });
-    res.status(500).json({ success: false, message: "Failed to delete shop", error });
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to delete shop" });
   }
 };
 
