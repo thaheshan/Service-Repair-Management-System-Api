@@ -2,7 +2,7 @@ import { prisma } from "@/db/prisma";
 import { STAFF_ASSIGNABLE_ROLES } from "@/types/staff.types";
 import type { UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
-import type { CreateStaffInput } from "@/validators/staff/staff.validator";
+import type { CreateStaffInput, UpdateStaffInput } from "@/validators/staff/staff.validator";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -23,6 +23,24 @@ export type StaffListRow = {
   isActive: boolean;
 };
 
+async function resolveActiveStaffUserId(
+  tenantId: string,
+  shopId: string,
+  staffIdParam: string,
+): Promise<string | null> {
+  const user = await prisma.user.findFirst({
+    where: {
+      tenantId,
+      shopId,
+      isActive: true,
+      role: { in: [...STAFF_ASSIGNABLE_ROLES] },
+      OR: [{ staffDisplayId: staffIdParam }, { id: staffIdParam }],
+    },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
 export const listStaffMembers = async (
   tenantId: string,
   shopId: string | null,
@@ -30,6 +48,7 @@ export const listStaffMembers = async (
   const users = await prisma.user.findMany({
     where: {
       tenantId,
+      isActive: true,
       role: { in: [...STAFF_ASSIGNABLE_ROLES] },
       ...(shopId ? { shopId } : {}),
     },
@@ -108,4 +127,78 @@ export const createStaffMember = async (
   }
 
   return { staffDisplayId };
+};
+
+export const updateStaffMember = async (
+  tenantId: string,
+  shopId: string,
+  staffIdParam: string,
+  actorUserId: string,
+  data: UpdateStaffInput,
+): Promise<void> => {
+  const targetId = await resolveActiveStaffUserId(tenantId, shopId, staffIdParam);
+  if (!targetId) {
+    throw { status: 404, code: "NOT_FOUND" };
+  }
+  if (targetId === actorUserId) {
+    throw { status: 400, code: "SELF_ACTION" };
+  }
+
+  const passwordHash =
+    data.password !== undefined ? await bcrypt.hash(data.password, BCRYPT_ROUNDS) : undefined;
+
+  const updateData: Record<string, unknown> = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.phone !== undefined) updateData.phone = data.phone === null ? null : data.phone.trim() || null;
+  if (data.role !== undefined) updateData.role = data.role;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+  if (passwordHash !== undefined) updateData.password = passwordHash;
+
+  try {
+    await prisma.user.update({
+      where: { id: targetId },
+      data: updateData as any,
+    });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target)
+        ? (error.meta.target as string[])
+        : typeof error.meta?.target === "string"
+          ? [error.meta.target]
+          : [];
+      throw { status: 409, code: "DUPLICATE", target };
+    }
+    if (error.code === "P2025") {
+      throw { status: 404, code: "NOT_FOUND" };
+    }
+    throw error;
+  }
+};
+
+export const deactivateStaffMember = async (
+  tenantId: string,
+  shopId: string,
+  staffIdParam: string,
+  actorUserId: string,
+): Promise<void> => {
+  const targetId = await resolveActiveStaffUserId(tenantId, shopId, staffIdParam);
+  if (!targetId) {
+    throw { status: 404, code: "NOT_FOUND" };
+  }
+  if (targetId === actorUserId) {
+    throw { status: 400, code: "SELF_ACTION" };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: false },
+    });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      throw { status: 404, code: "NOT_FOUND" };
+    }
+    throw error;
+  }
 };
