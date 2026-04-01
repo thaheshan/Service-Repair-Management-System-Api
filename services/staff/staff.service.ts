@@ -1,8 +1,56 @@
 import { prisma } from "@/db/prisma";
+import { STAFF_ASSIGNABLE_ROLES } from "@/types/staff.types";
+import type { UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
 import type { CreateStaffInput } from "@/validators/staff/staff.validator";
 
 const BCRYPT_ROUNDS = 12;
+
+function roleToLabel(role: UserRole): string {
+  const labels: Record<UserRole, string> = {
+    ADMIN: "Admin",
+    MANAGER: "Manager",
+    TECHNICIAN: "Technician",
+    CUSTOMER: "Customer",
+  };
+  return labels[role];
+}
+
+export type StaffListRow = {
+  staffId: string;
+  name: string;
+  role: string;
+  isActive: boolean;
+};
+
+export const listStaffMembers = async (
+  tenantId: string,
+  shopId: string | null,
+): Promise<StaffListRow[]> => {
+  const users = await prisma.user.findMany({
+    where: {
+      tenantId,
+      role: { in: [...STAFF_ASSIGNABLE_ROLES] },
+      ...(shopId ? { shopId } : {}),
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      staffDisplayId: true,
+      role: true,
+      isActive: true,
+    },
+    orderBy: [{ staffDisplayId: "asc" }, { createdAt: "asc" }],
+  });
+
+  return users.map((u) => ({
+    staffId: u.staffDisplayId ?? u.id,
+    name: (u.name && u.name.trim()) || u.email,
+    role: roleToLabel(u.role),
+    isActive: u.isActive,
+  }));
+};
 
 async function nextStaffDisplayId(tenantId: string): Promise<string> {
   const rows = await prisma.$queryRaw<Array<{ staffDisplayId: string | null }>>`

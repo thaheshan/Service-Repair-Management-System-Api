@@ -1,6 +1,7 @@
+import { STAFF_ASSIGNABLE_ROLES } from "@/types/staff.types";
 import { z } from "zod";
 
-const staffRoleSchema = z.enum(["ADMIN", "MANAGER", "TECHNICIAN"], {
+const staffRoleSchema = z.enum(STAFF_ASSIGNABLE_ROLES, {
   message: "role must be ADMIN, MANAGER, or TECHNICIAN",
 });
 

@@ -1,8 +1,18 @@
 import { logger } from "@/config/logger.config";
-import { createStaffMember } from "@/services/staff/staff.service";
+import { createStaffMember, listStaffMembers } from "@/services/staff/staff.service";
 import type { AuthRequest } from "@/types/auth.types";
 import { createStaffSchema } from "@/validators/staff/staff.validator";
 import type { Response } from "express";
+
+export const getStaffList = async (req: AuthRequest, res: Response) => {
+  try {
+    const staff = await listStaffMembers(req.user!.tenantId, req.user!.shopId ?? null);
+    return res.status(200).json({ staff });
+  } catch (error: any) {
+    logger.error(`[getStaffList] -> ${error?.message ?? error}`);
+    return res.status(500).json({ error: "Unable to fetch staff list" });
+  }
+};
 
 export const addStaff = async (req: AuthRequest, res: Response) => {
   const parsed = createStaffSchema.safeParse(req.body);
