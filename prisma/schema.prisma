@@ -58,9 +58,12 @@ model User {
 
   email     String   @unique
   password  String
+  name      String?
+  phone     String?
   role      UserRole @default(TECHNICIAN)
   isActive  Boolean  @default(true)
   isEmailVerified Boolean @default(false)  
+  staffDisplayId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -73,6 +76,7 @@ model User {
 
   @@index([tenantId])
   @@index([shopId])
+  @@unique([tenantId, staffDisplayId])
 }
 
 model RefreshToken {
