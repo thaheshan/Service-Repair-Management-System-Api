@@ -39,6 +39,9 @@ model Shop {
   address   String?
   phone     String?
   brn       String?  // Business Registration Number
+  currency  String   @default("USD")
+  taxPercentage Int  @default(0)
+  notificationsEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
