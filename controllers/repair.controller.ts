@@ -1,67 +1,74 @@
-import { prisma } from "@/db/prisma";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
+import {
+  createTenantRepair,
+  deleteTenantRepair,
+  getTenantRepairById,
+  getTenantRepairs,
+  updateTenantRepair,
+} from "@/services/repair/repair.service";
+import type { AuthRequest } from "@/types/auth.types";
 
-export const getRepairs = async (req: Request, res: Response) => {
+export const getRepairs = async (req: AuthRequest, res: Response) => {
   try {
-    const repairs = await prisma.repair.findMany({
-      include: { customer: true, device: true, technician: { select: { id: true, email: true, role: true } } },
-    });
+    const repairs = await getTenantRepairs(req.user!.tenantId);
     res.status(200).json({ success: true, data: repairs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch repairs", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to fetch repairs" });
   }
 };
 
-export const getRepairById = async (req: Request, res: Response) => {
+export const getRepairById = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const repair = await prisma.repair.findUnique({
-      where: { id },
-      include: { customer: true, device: true, technician: { select: { id: true, email: true, role: true } }, photos: true },
-    });
-    if (!repair) return res.status(404).json({ success: false, message: "Repair not found" });
+    const repair = await getTenantRepairById(id, req.user!.tenantId);
     res.status(200).json({ success: true, data: repair });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch repair", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to fetch repair" });
   }
 };
 
-export const createRepair = async (req: Request, res: Response) => {
+export const createRepair = async (req: AuthRequest, res: Response) => {
   try {
-    const { tenantId, shopId, customerId, deviceId, issue, estimatedCost, technicianId } = req.body;
-    if (!tenantId || !shopId || !customerId || !deviceId)
-      return res.status(400).json({ success: false, message: "tenantId, shopId, customerId and deviceId are required" });
-    const repair = await prisma.repair.create({
-      data: { tenantId, shopId, customerId, deviceId, issue, estimatedCost, technicianId },
+    const { shopId, customerId, deviceId, issue, estimatedCost, technicianId } = req.body;
+    if (!shopId || !customerId || !deviceId)
+      return res.status(400).json({ success: false, message: "shopId, customerId and deviceId are required" });
+    const repair = await createTenantRepair(req.user!.tenantId, {
+      shopId,
+      customerId,
+      deviceId,
+      issue,
+      estimatedCost,
+      technicianId,
     });
     res.status(201).json({ success: true, data: repair });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create repair", error });
+  } catch (error: any) {
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create repair" });
   }
 };
 
-export const updateRepair = async (req: Request, res: Response) => {
+export const updateRepair = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const { status, diagnosis, estimatedCost, finalCost, technicianId } = req.body;
-    const repair = await prisma.repair.update({
-      where: { id },
-      data: { status, diagnosis, estimatedCost, finalCost, technicianId },
+    const repair = await updateTenantRepair(id, req.user!.tenantId, {
+      status,
+      diagnosis,
+      estimatedCost,
+      finalCost,
+      technicianId,
     });
     res.status(200).json({ success: true, data: repair });
   } catch (error: any) {
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "Repair not found" });
-    res.status(500).json({ success: false, message: "Failed to update repair", error });
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to update repair" });
   }
 };
 
-export const deleteRepair = async (req: Request, res: Response) => {
+export const deleteRepair = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    await prisma.repair.delete({ where: { id } });
+    await deleteTenantRepair(id, req.user!.tenantId);
     res.status(200).json({ success: true, message: "Repair deleted successfully" });
   } catch (error: any) {
-    if (error.code === "P2025") return res.status(404).json({ success: false, message: "Repair not found" });
-    res.status(500).json({ success: false, message: "Failed to delete repair", error });
+    res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to delete repair" });
   }
 };
