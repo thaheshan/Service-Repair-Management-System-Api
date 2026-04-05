@@ -70,80 +70,78 @@ export const registerStaffService = async (
   }
 
   try {
-    const result = await prisma.$transaction(async (tx: any) => {
-      const shop = await tx.shop.findUnique({
-        where: { shopCode: payload.shop_id },
-        select: {
-          id: true,
-          shopCode: true,
-          tenantId: true,
-          isActive: true,
-          acceptsStaffRegistrations: true,
-        },
-      });
-
-      if (!shop) {
-        throw new ApiError(400, "Invalid Shop ID");
-      }
-
-      if (!shop.isActive || !shop.acceptsStaffRegistrations) {
-        throw new ApiError(403, "Shop disabled or registration locked");
-      }
-
-      const existingUser = await tx.user.findFirst({
-        where: { phone: payload.phone },
-        select: { id: true, shopId: true },
-      });
-
-      if (existingUser?.shopId && existingUser.shopId !== shop.id) {
-        throw new ApiError(403, "User already registered to another shop");
-      }
-
-      if (existingUser?.shopId === shop.id) {
-        throw new ApiError(403, "User already registered to this shop");
-      }
-
-      const hashedPassword = await bcrypt.hash(payload.password, 12);
-
-      const user = await tx.user.create({
-        data: {
-          fullName: payload.full_name,
-          phone: payload.phone,
-          password: hashedPassword,
-          role: payload.role,
-          tenantId: shop.tenantId,
-          shopId: shop.id,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          role: true,
-          tenantId: true,
-          shopId: true,
-          isActive: true,
-          createdAt: true,
-        },
-      });
-
-      const accessToken = signAccessToken({
-        user_id: user.id,
-        role: user.role as JwtRole,
-        shop_id: user.shopId,
-        tenant_id: user.tenantId,
-      });
-
-      return {
-        staff: {
-          ...user,
-          role: user.role as JwtRole,
-        },
-        access_token: accessToken,
-      };
+    const shop = await prisma.shop.findUnique({
+      where: { shopCode: payload.shop_id },
+      select: {
+        id: true,
+        shopCode: true,
+        tenantId: true,
+        isActive: true,
+        acceptsStaffRegistrations: true,
+      },
     });
 
-    return result;
+    if (!shop) {
+      throw new ApiError(400, "Invalid Shop ID");
+    }
+
+    if (!shop.isActive || !shop.acceptsStaffRegistrations) {
+      throw new ApiError(403, "Shop disabled or registration locked");
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: { phone: payload.phone },
+      select: { id: true, shopId: true },
+    });
+
+    if (existingUser?.shopId && existingUser.shopId !== shop.id) {
+      throw new ApiError(403, "User already registered to another shop");
+    }
+
+    if (existingUser?.shopId === shop.id) {
+      throw new ApiError(403, "User already registered to this shop");
+    }
+
+    const hashedPassword = await bcrypt.hash(payload.password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        fullName: payload.full_name,
+        phone: payload.phone,
+        password: hashedPassword,
+        role: payload.role,
+        tenantId: shop.tenantId,
+        shopId: shop.id,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+          email: true,
+        phone: true,
+        role: true,
+        tenantId: true,
+        shopId: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    const accessToken = signAccessToken({
+      sub: user.id,
+      email: user.email ?? "",
+      role: user.role as JwtRole,
+      shopId: user.shopId,
+      tenantId: user.tenantId,
+    });
+
+    return {
+      staff: {
+        ...user,
+        role: user.role as JwtRole,
+      },
+      access_token: accessToken,
+    };
   } catch (error) {
     throw normalizeError(error);
   }

@@ -72,9 +72,29 @@ model User {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shop   Shop?  @relation(fields: [shopId], references: [id], onDelete: SetNull)
   repairs  Repair[]
+  refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   emailLogs               EmailLog[]
 
+  @@index([tenantId])
+  @@index([shopId])
+}
+
+model RefreshToken {
+  id        String   @id
+  userId    String
+  tenantId  String
+  shopId    String?
+
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([tenantId])
   @@index([shopId])
 }

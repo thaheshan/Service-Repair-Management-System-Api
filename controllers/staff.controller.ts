@@ -1,4 +1,4 @@
-import type { AuthenticatedRequest } from "@/middlewares/auth.middleware";
+import type { AuthRequest } from "@/types/auth.types";
 import {
   getStaffDashboardContextService,
   registerStaffService,
@@ -70,11 +70,11 @@ export const registerStaff = async (req: Request, res: Response) => {
 };
 
 export const getStaffDashboardContext = async (
-  req: AuthenticatedRequest,
+  req: AuthRequest,
   res: Response,
 ) => {
   try {
-    const userId = req.user?.user_id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: "Missing access token" });
     }

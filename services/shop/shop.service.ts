@@ -175,3 +175,66 @@ export const validateEmailToken = async (token: string): Promise<void> => {
 
   logger.info(`[validateEmailToken] -> Email verified successfully`);
 };
+
+export const getTenantShops = async (tenantId: string) => {
+  return prisma.shop.findMany({
+    where: { tenantId },
+  });
+};
+
+export const getTenantShopById = async (id: string, tenantId: string) => {
+  const shop = await prisma.shop.findFirst({
+    where: { id, tenantId },
+  });
+
+  if (!shop) {
+    throw { status: 404, message: "Shop not found" };
+  }
+
+  return shop;
+};
+
+export const createTenantShop = async (
+  tenantId: string,
+  data: { name: string; address?: string; phone?: string }
+) => {
+  return prisma.shop.create({
+    data: {
+      tenantId,
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+    },
+  });
+};
+
+export const updateTenantShop = async (
+  id: string,
+  tenantId: string,
+  data: { name?: string; address?: string; phone?: string }
+) => {
+  try {
+    return await prisma.shop.update({
+      where: { id, tenantId },
+      data,
+    });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      throw { status: 404, message: "Shop not found" };
+    }
+    throw error;
+  }
+};
+
+export const deleteTenantShop = async (id: string, tenantId: string): Promise<void> => {
+  try {
+    await prisma.shop.delete({
+      where: { id, tenantId },
+    });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      throw { status: 404, message: "Shop not found" };
+    }
+    throw error;
+  }
+};
