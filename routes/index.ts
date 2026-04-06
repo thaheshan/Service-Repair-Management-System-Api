@@ -4,6 +4,7 @@ import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import dashboardRouter from "@/routes/dashboard.routes";
 import authRouter from "@/routes/auth.routes";
+import { verifyEmail } from "@/controllers/shop.controller";
 import { authenticate } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -16,7 +17,7 @@ router.get("/health", (_req, res) => {
 });
 
 router.use("/v1/auth", authRouter);
-
+router.get("/v1/users/verify-email", verifyEmail);
 router.use(authenticate);
 
 router.use("/v1/users", usersRouter);
