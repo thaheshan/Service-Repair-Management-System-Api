@@ -30,6 +30,7 @@ model Tenant {
 
   shops   Shop[]
   users   User[]
+  shopSettings ShopSettings?
 }
 
 model Shop {
@@ -52,6 +53,32 @@ model Shop {
   repairs   Repair[]
 
   @@index([tenantId])
+}
+
+model ShopSettings {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+  featureFlags Json  @default("{}") @map("feature_flags")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model AuditLogs {
+  id        String   @id @default(cuid())
+  tenantId  String
+  adminId   String
+  flagName  String
+  oldVal    Boolean
+  newVal    Boolean
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([adminId])
+  @@index([flagName])
 }
 
 model User {
