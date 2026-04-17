@@ -136,3 +136,68 @@ export const getRegistrationRequestStatus = async (id: string) => {
   if (!request) throw { status: 404, message: "Request not found" };
   return request;
 };
+
+export const resendAdminApprovalEmail = async (id: string) => {
+  logger.info(`[RegistrationService] Resending admin notification for request: ${id}`);
+
+  const request = await prisma.registrationRequest.findUnique({
+    where: { id }
+  });
+
+  if (!request) {
+    throw { status: 404, message: "Registration request not found" };
+  }
+
+  if (request.status === "COMPLETED") {
+    throw { status: 400, message: "This registration has already been completed." };
+  }
+
+  try {
+    await sendAdminApprovalEmail(request);
+    logger.info(`[RegistrationService] Admin notification resent for request: ${id}`);
+  } catch (error) {
+    logger.error(`[RegistrationService] Failed to resend admin email: ${error}`);
+    throw { status: 500, message: "Failed to send admin notification email." };
+  }
+
+  return { message: "Admin notification resent successfully" };
+};
+
+export const createStaffMember = async (data: any) => {
+  logger.info(`[RegistrationService] Creating staff member request for: ${data.email}`);
+
+  // 1. Verify shopId exists
+  const shop = await prisma.shop.findUnique({
+    where: { id: data.shopId }
+  });
+
+  if (!shop) {
+    throw { status: 404, message: "Invalid Shop ID provided. Please get the correct Shop ID from your manager." };
+  }
+
+  // 2. Check if email exists
+  const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+  if (existingUser) {
+    throw { status: 400, message: "Email is already registered" };
+  }
+
+  // 3. Hash password
+  const hashedPassword = await bcrypt.hash(data.password, 10);
+
+  // 4. Create user linked to shop's tenant and shopId
+  const user = await prisma.user.create({
+    data: {
+      tenantId: shop.tenantId,
+      shopId: shop.id,
+      name: `${data.firstName} ${data.lastName}`.trim(),
+      email: data.email,
+      password: hashedPassword,
+      role: "TECHNICIAN", // default assigned role
+      isActive: true, // Auto-active for this flow
+      isEmailVerified: true
+    }
+  });
+
+  logger.info(`[RegistrationService] Successfully created staff ${user.id} in shop ${shop.id}`);
+  return { message: "Staff registration successful", user: { id: user.id, email: user.email, shopId: user.shopId } };
+};

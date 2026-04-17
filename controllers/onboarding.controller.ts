@@ -66,3 +66,24 @@ export const finalizeRegistration = async (req: Request, res: Response) => {
     return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
   }
 };
+
+export const resendAdminNotification = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await registrationService.resendAdminApprovalEmail(id);
+    return res.status(200).json({ message: "Admin notification resent successfully" });
+  } catch (error: any) {
+    logger.error(`[OnboardingController] Error resending notification: ${error.message}`);
+    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
+  }
+};
+
+export const registerStaff = async (req: Request, res: Response) => {
+  try {
+    const result = await registrationService.createStaffMember(req.body);
+    return res.status(201).json(result);
+  } catch (error: any) {
+    logger.error(`[OnboardingController] Error registering staff: ${error.message}`);
+    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
+  }
+};
