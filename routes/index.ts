@@ -3,8 +3,12 @@ import repairsRouter from "@/routes/repairs.routes";
 import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
+import onboardingRouter from "@/routes/onboarding.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
 import { Router } from "express";
+
+// Public controllers for onboarding
+import { generateShopIds, registerShop, sendVerification as sendShopVerification } from "@/controllers/shop.controller";
 
 const router = Router();
 
@@ -15,7 +19,14 @@ router.get("/health", (_req, res) => {
 });
 
 router.use("/auth", authRouter);
+router.use("/onboarding", onboardingRouter);
 
+// Public Shop Onboarding Routes
+router.post("/shops/generate-ids", generateShopIds);
+router.post("/shops/register", registerShop);
+router.post("/shops/send-verification", sendShopVerification);
+
+// All routes below require authentication
 router.use(authenticate);
 
 router.use("/users", usersRouter);
