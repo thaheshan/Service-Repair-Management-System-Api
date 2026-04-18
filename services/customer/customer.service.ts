@@ -10,14 +10,15 @@ export const createCustomer = async (
   logger.info(`[createCustomer] -> Creating customer: ${data.name}`);
 
   const customer = await prisma.customer.create({
-    data: {
-      tenantId,
-      shopId,
-      name: data.name,
-      phone: data.phone ?? null,
-      email: data.email ?? null,
-    },
-  });
+  data: {
+    tenantId,
+    shopId,
+    name: data.name,
+    phone: data.phone ?? null,
+    email: data.email ?? null,
+    address: data.address ?? null,
+  },
+});
 
   logger.info(`[createCustomer] -> Customer created: ${customer.id}`);
   return customer;
@@ -130,11 +131,24 @@ export const deleteCustomer = async (
 
   const existing = await prisma.customer.findFirst({
     where: { id: customerId, tenantId, shopId },
+    include: {
+      _count: {
+        select: { repairs: true, devices: true },
+      },
+    },
   });
 
   if (!existing) {
     logger.warn(`[deleteCustomer] -> Customer not found: ${customerId}`);
     throw { status: 404, message: "Customer not found" };
+  }
+
+  if (existing._count.repairs > 0 || existing._count.devices > 0) {
+    logger.warn(`[deleteCustomer] -> Cannot delete customer with ${existing._count.repairs} repairs and ${existing._count.devices} devices`);
+    throw {
+      status: 400,
+      message: `Cannot delete customer with associated repairs (${existing._count.repairs}) or devices (${existing._count.devices})`,
+    };
   }
 
   await prisma.customer.delete({ where: { id: customerId } });

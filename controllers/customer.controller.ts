@@ -104,6 +104,8 @@ export const removeCustomer = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Customer deleted" });
   } catch (error: any) {
     logger.error(`[removeCustomer] -> ${error.message}`);
-    return res.status(error.status ?? 500).json({ error: "Delete failed" });
+    return res.status(error.status ?? 500).json({ 
+      error: error.message || "Delete failed" 
+    });
   }
 };

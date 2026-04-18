@@ -3,7 +3,6 @@ export interface CreateCustomerRequest {
   phone: string;
   email?: string;
   address?: string;
-  smsEnabled?: boolean;
 }
 
 export interface UpdateCustomerRequest {
@@ -11,7 +10,6 @@ export interface UpdateCustomerRequest {
   phone?: string;
   email?: string;
   address?: string;
-  smsEnabled?: boolean;
 }
 
 export interface CustomerResponse {
@@ -20,5 +18,4 @@ export interface CustomerResponse {
   phone: string;
   email: string | null;
   address: string | null;
-  smsEnabled: boolean;
 }
