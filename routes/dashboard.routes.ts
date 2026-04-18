@@ -1,11 +1,9 @@
 import { todayRepairs } from "@/controllers/dashboard.controller";
+import { authorizeRoles } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
 const router = Router();
 
-// TODO: Add auth middleware here once auth is done
-// router.use(authMiddleware);
-
-router.get("/today-repairs", todayRepairs);
+router.get("/today-repairs", authorizeRoles("ADMIN", "MANAGER", "TECHNICIAN"), todayRepairs);
 
 export default router;

@@ -9,4 +9,5 @@ export interface DashboardAuthContext {
   user_id: string;
   role: AuthRole;
   tenant_id: string;
+  shop_id?: string;
 }

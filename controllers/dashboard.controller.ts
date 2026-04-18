@@ -17,10 +17,11 @@ export const todayRepairs = async (req: Request, res: Response) => {
       user_id: authReq.user.id,
       role: authReq.user.role,
       tenant_id: authReq.user.tenantId,
+      shop_id: authReq.user.shopId || undefined, 
     };
 
     const data = await getTodayRepairs(auth);
-    return res.status(200).json(data);
+    return res.status(200).json({ success: true, data });
   } catch (error: any) {
     logger.error(`[todayRepairs] -> ${error.message}`);
     return res.status(error.status ?? 500).json({
