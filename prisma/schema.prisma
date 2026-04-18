@@ -47,7 +47,7 @@ model Shop {
   customers Customer[]
   devices   Device[]
   repairs   Repair[]
-
+  partsInventory  PartsInventory[]
   @@index([tenantId])
 }
 
@@ -70,7 +70,7 @@ model User {
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   emailLogs               EmailLog[]
-
+  repairPartsUsed RepairPartsUsed[]
   @@index([tenantId])
   @@index([shopId])
 }
@@ -164,7 +164,7 @@ model Repair {
 
   photos Photo[]
   notifications Notification[]
-
+  repairPartsUsed RepairPartsUsed[]
   @@index([tenantId])
   @@index([shopId])
   @@index([deviceId])
@@ -233,4 +233,47 @@ model EmailLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+model PartsInventory {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  shopId              String
+  partName            String
+  partNumber          String?
+  category            String?
+  compatibleBrands    String[]
+  compatibleModels    String[]
+  supplierName        String?
+  quantityInStock     Int      @default(0)
+  minimumStockLevel   Int      @default(0)
+  unitCost            Float
+  sellingPrice        Float
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairPartsUsed     RepairPartsUsed[]
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@index([category])
+}
+
+model RepairPartsUsed {
+  id            String   @id @default(cuid())
+  repairId      String
+  partId        String
+  quantityUsed  Int
+  unitPrice     Float
+  totalPrice    Float
+  addedByUserId String
+  addedAt       DateTime @default(now())
+
+  repair        Repair         @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  part          PartsInventory @relation(fields: [partId], references: [id], onDelete: Restrict)
+  addedBy       User           @relation(fields: [addedByUserId], references: [id])
+
+  @@index([repairId])
+  @@index([partId])
 }
