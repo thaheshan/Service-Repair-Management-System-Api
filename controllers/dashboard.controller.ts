@@ -7,13 +7,19 @@ export async function getPendingRepairs(req: AuthRequest, res: Response) {
     const user = req.user!;
     const pendingRepairs = await countPendingRepairs({
       tenantId: user.tenantId,
+      shopId: user.shopId,
       role: user.role,
       userId: user.id,
     });
 
-    return res.status(200).json({ pendingRepairs });
+    return res
+      .status(200)
+      .json({ success: true, data: { pendingRepairs } });
   } catch {
-    return res.status(500).json({ error: "Unable to fetch pending repairs" });
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch pending repairs",
+    });
   }
 }
 
