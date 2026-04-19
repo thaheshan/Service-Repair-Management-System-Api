@@ -11,7 +11,18 @@ import type { Response } from "express";
 
 export const getStaffList = async (req: AuthRequest, res: Response) => {
   try {
-    const staff = await listStaffMembers(req.user!.tenantId, req.user!.shopId ?? null);
+    const raw = req.query.includeInactive;
+    const includeInactive =
+      typeof raw === "string"
+        ? raw.toLowerCase() === "true"
+        : Array.isArray(raw) && typeof raw[0] === "string"
+          ? raw[0].toLowerCase() === "true"
+          : false;
+    const staff = await listStaffMembers(
+      req.user!.tenantId,
+      req.user!.shopId ?? null,
+      includeInactive,
+    );
     return res.status(200).json({ staff });
   } catch (error: any) {
     logger.error(`[getStaffList] -> ${error?.message ?? error}`);

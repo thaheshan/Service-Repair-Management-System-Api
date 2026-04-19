@@ -11,7 +11,8 @@ export function getRedis(): Redis | null {
   if (url) {
     redis = new Redis(url, {
       maxRetriesPerRequest: 3,
-      enableOfflineQueue: true,
+      enableOfflineQueue: false,
+      commandTimeout: 5_000,
     });
   } else {
     const password = env.REDIS_PASSWORD?.trim();
@@ -21,7 +22,8 @@ export function getRedis(): Redis | null {
       username: env.REDIS_USERNAME?.trim() || undefined,
       password: password || undefined,
       maxRetriesPerRequest: 3,
-      enableOfflineQueue: true,
+      enableOfflineQueue: false,
+      commandTimeout: 5_000,
     });
   }
 

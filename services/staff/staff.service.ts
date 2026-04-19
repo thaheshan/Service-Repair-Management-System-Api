@@ -23,7 +23,7 @@ export type StaffListRow = {
   isActive: boolean;
 };
 
-async function resolveActiveStaffUserId(
+async function resolveStaffUserId(
   tenantId: string,
   shopId: string,
   staffIdParam: string,
@@ -32,7 +32,6 @@ async function resolveActiveStaffUserId(
     where: {
       tenantId,
       shopId,
-      isActive: true,
       role: { in: [...STAFF_ASSIGNABLE_ROLES] },
       OR: [{ staffDisplayId: staffIdParam }, { id: staffIdParam }],
     },
@@ -44,11 +43,12 @@ async function resolveActiveStaffUserId(
 export const listStaffMembers = async (
   tenantId: string,
   shopId: string | null,
+  includeInactive = false,
 ): Promise<StaffListRow[]> => {
   const users = await prisma.user.findMany({
     where: {
       tenantId,
-      isActive: true,
+      ...(!includeInactive ? { isActive: true } : {}),
       role: { in: [...STAFF_ASSIGNABLE_ROLES] },
       ...(shopId ? { shopId } : {}),
     },
@@ -136,7 +136,7 @@ export const updateStaffMember = async (
   actorUserId: string,
   data: UpdateStaffInput,
 ): Promise<void> => {
-  const targetId = await resolveActiveStaffUserId(tenantId, shopId, staffIdParam);
+  const targetId = await resolveStaffUserId(tenantId, shopId, staffIdParam);
   if (!targetId) {
     throw { status: 404, code: "NOT_FOUND" };
   }
@@ -182,7 +182,7 @@ export const deactivateStaffMember = async (
   staffIdParam: string,
   actorUserId: string,
 ): Promise<void> => {
-  const targetId = await resolveActiveStaffUserId(tenantId, shopId, staffIdParam);
+  const targetId = await resolveStaffUserId(tenantId, shopId, staffIdParam);
   if (!targetId) {
     throw { status: 404, code: "NOT_FOUND" };
   }
