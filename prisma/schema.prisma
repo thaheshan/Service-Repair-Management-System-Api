@@ -22,6 +22,39 @@ enum RepairStatus {
   DELIVERED
 }
 
+enum SubscriptionPlan {
+  SINGLE
+  SMALL
+  MEDIUM
+  LARGE
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  MOBILE_PAYMENT
+}
+
+enum PaymentType {
+  ADVANCE
+  PARTIAL
+  FULL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -33,20 +66,33 @@ model Tenant {
 }
 
 model Shop {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  address   String?
-  phone     String?
-  brn       String?  // Business Registration Number
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String             @id @default(cuid())
+  tenantId              String
+  name                  String
+  businessRegistration  String?
+  address               String?
+  city                  String?
+  postalCode            String?
+  phone                 String?
+  email                 String?
+  website               String?
+  logoUrl               String?
+  taxNumber             String?
+  subscriptionPlan      SubscriptionPlan?  @default(SINGLE)
+  subscriptionStatus    SubscriptionStatus? @default(SUSPENDED)
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  isActive              Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users     User[]
   customers Customer[]
   devices   Device[]
   repairs   Repair[]
+  payments  Payment[]
+  settings  ShopSettings?
 
   @@index([tenantId])
 }
@@ -110,6 +156,7 @@ model Customer {
 
   devices Device[]
   repairs Repair[]
+  payments Payment[]
 
   @@index([tenantId])
   @@index([shopId])
@@ -164,6 +211,7 @@ model Repair {
 
   photos Photo[]
   notifications Notification[]
+  payments Payment[]
 
   @@index([tenantId])
   @@index([shopId])
@@ -234,3 +282,47 @@ model EmailLog {
 
   @@index([userId])
 }
+
+model Payment {
+  id                   String        @id @default(uuid())
+  tenantId             String
+  repairId             String?
+  customerId           String?
+  paymentMethod        PaymentMethod
+  paymentType          PaymentType
+  amount               Decimal       @db.Decimal(10, 2)
+  transactionReference String?       @unique
+  status               PaymentStatus @default(PENDING)
+  paymentDate          DateTime      @default(now())
+  receivedByUserId     String?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  shop     Shop      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  repair   Repair?   @relation(fields: [repairId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([repairId])
+  @@index([customerId])
+  @@index([paymentDate])
+}
+
+model ShopSettings {
+  id                      String   @id @default(uuid())
+  tenantId                String   @unique
+  businessHours           Json?
+  notificationPreferences Json?
+  emailSettings           Json?
+  smsSettings             Json?
+  invoiceSettings         Json?
+  defaultWarrantyDays     Int      @default(30)
+  taxRate                 Decimal  @default(0.00) @db.Decimal(5, 2)
+  currency                String   @default("LKR")
+  timezone                String?
+  dateFormat              String?
+  updatedAt               DateTime @updatedAt
+
+  shop Shop @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}

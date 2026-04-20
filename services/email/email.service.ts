@@ -54,3 +54,51 @@ export const sendVerificationEmail = async (
 
   throw lastError;
 };
+
+export const sendPaymentConfirmationEmail = async (
+  userId: string,
+  email: string,
+  amount: number,
+  plan: string
+) => {
+  let attempts = 0;
+  let lastError: any = null;
+
+  while (attempts < MAX_RETRIES) {
+    attempts++;
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject: "Payment Confirmation - SRM",
+        html: `
+          <h2>Payment Received</h2>
+          <p>We have successfully received your payment of <b>LKR ${amount}</b>.</p>
+          <p>Your subscription plan <b>${plan}</b> is now active.</p>
+          <p>Thank you for choosing Service Repair Management System!</p>
+        `,
+      });
+
+      await prisma.emailLog.create({
+        data: { userId, email, type: "payment_confirmation", status: "SENT", attempts },
+      });
+
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Payment confirmation email attempt ${attempts} failed:`, error.message);
+      if (attempts < MAX_RETRIES) await sleep(RETRY_DELAY_MS);
+    }
+  }
+
+  await prisma.emailLog.create({
+    data: {
+      userId,
+      email,
+      type: "payment_confirmation",
+      status: "FAILED",
+      attempts,
+      error: lastError?.message ?? "Unknown error",
+    },
+  });
+};

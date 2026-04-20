@@ -47,7 +47,7 @@ export const createShopIds = async (
 export const shopRegister = async (
   data: RegisterShopRequest
 ): Promise<RegisterShopResponse> => {
-  const { shop_id, tenant_id, shop_name, brn, owner } = data;
+  const { shop_id, tenant_id, shop_name, businessRegistration, owner } = data;
 
   logger.info(`[shopRegister] -> Starting registration for shop: ${shop_name}`);
 
@@ -61,7 +61,7 @@ export const shopRegister = async (
     });
 
     const shop = await tx.shop.create({
-      data: { id: shop_id, tenantId: tenant_id, name: shop_name, brn },
+      data: { id: shop_id, tenantId: tenant_id, name: shop_name, businessRegistration },
     });
 
     const user = await tx.user.create({
