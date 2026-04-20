@@ -75,7 +75,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
   if (process.env.PAYMENT_MODE === 'TEST') {
     logger.info(`[RegistrationService] MOCK PAYMENT VERIFIED for request: ${requestId}`);
   } else {
-    const isPaid = await verifyPaymentIntent(paymentIntentId);
+    const isPaid = await verifyPaymentIntent(paymentIntentId, requestId);
     if (!isPaid) throw { status: 400, message: "Payment not verified" };
   }
 
@@ -193,7 +193,7 @@ export const createStaffMember = async (data: any) => {
       email: data.email,
       password: hashedPassword,
       role: "TECHNICIAN", // default assigned role
-      isActive: true, // Auto-active for this flow
+      isActive: false, // Must be approved by manager/admin
       isEmailVerified: true
     }
   });

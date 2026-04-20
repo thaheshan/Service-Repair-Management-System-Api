@@ -28,10 +28,10 @@ export const createPaymentIntent = async (amount: number, currency: string = 'lk
   }
 };
 
-export const verifyPaymentIntent = async (paymentIntentId: string) => {
+export const verifyPaymentIntent = async (paymentIntentId: string, requestId: string) => {
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    return paymentIntent.status === 'succeeded';
+    return paymentIntent.status === 'succeeded' && paymentIntent.metadata.requestId === requestId;
   } catch (error: any) {
     logger.error(`[Stripe] Error verifying payment: ${error.message}`);
     return false;

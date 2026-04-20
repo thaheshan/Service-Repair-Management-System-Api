@@ -96,7 +96,8 @@ export const sendPasswordResetEmail = async (
 
 export const sendAdminApprovalEmail = async (request: any) => {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@futuracareers.tech";
-  const approveUrl = `${process.env.APP_URL}/api/onboarding/approve/${request.approvalToken}`;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const approveUrl = `${frontendUrl}/admin/approve-registration?token=${request.approvalToken}`;
   const fullData = request.fullData;
 
   console.log("\n-------------------------------------------");
