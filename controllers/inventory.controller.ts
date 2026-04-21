@@ -86,8 +86,10 @@ export const removeInventoryItem = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Item removed" });
   } catch (error: any) {
     logger.error(`[removeInventoryItem] -> ${error.message}`);
-    return res.status(error.status ?? 500).json({ error: "Deletion failed" });
-  }
+    return res.status(error.status ?? 500).json({ 
+      error: error.message || "Deletion failed" 
+    });
+  } 
 };
 
 // GET /api/v1/inventory/low-stock

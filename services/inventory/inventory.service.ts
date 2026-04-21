@@ -118,7 +118,7 @@ export const deleteInventoryItem = async (
   logger.info(`[deleteInventoryItem] -> Deleting item: ${itemId}`);
 
   const existing = await prisma.partsInventory.findFirst({
-    where: { id: itemId, tenantId, shopId },
+    where: { id: itemId, tenantId, shopId, isActive: true },
   });
 
   if (!existing) {
@@ -126,8 +126,9 @@ export const deleteInventoryItem = async (
     throw { status: 404, message: "Item not found" };
   }
 
-  await prisma.partsInventory.update({
-    where: { id: itemId },
+  // Use updateMany to scope by tenantId and shopId
+  await prisma.partsInventory.updateMany({
+    where: { id: itemId, tenantId, shopId },
     data: { isActive: false },
   });
 
@@ -162,34 +163,54 @@ export const getLowStockItems = async (tenantId: string, shopId: string) => {
 export const getInventoryUsage = async (tenantId: string, shopId: string) => {
   logger.info(`[getInventoryUsage] -> Fetching usage report for shop: ${shopId}`);
 
-  const usageData = await prisma.repairPartsUsed.groupBy({
-    by: ["partId"],
-    where: {
-      repair: {
-        tenantId,
-        shopId,
-      },
-    },
-    _sum: {
+  // Get all repairs for this shop
+  const repairs = await prisma.repair.findMany({
+    where: { tenantId, shopId },
+    select: { id: true },
+  });
+
+  const repairIds = repairs.map((r) => r.id);
+
+  if (repairIds.length === 0) {
+    logger.info(`[getInventoryUsage] -> No repairs found, returning empty report`);
+    return [];
+  }
+
+  // Get parts used in those repairs
+  const partsUsed = await prisma.repairPartsUsed.findMany({
+    where: { repairId: { in: repairIds } },
+    select: {
+      partId: true,
       quantityUsed: true,
-    },
-    _count: {
       repairId: true,
     },
   });
 
+  // Manual aggregation
+  const usageMap = new Map<string, { totalQuantity: number; repairCount: Set<string> }>();
+
+  partsUsed.forEach((item) => {
+    if (!usageMap.has(item.partId)) {
+      usageMap.set(item.partId, { totalQuantity: 0, repairCount: new Set() });
+    }
+    const current = usageMap.get(item.partId)!;
+    current.totalQuantity += item.quantityUsed;
+    current.repairCount.add(item.repairId);
+  });
+
+  // Get part names
   const usageReport = await Promise.all(
-    usageData.map(async (item) => {
+    Array.from(usageMap.entries()).map(async ([partId, data]) => {
       const part = await prisma.partsInventory.findUnique({
-        where: { id: item.partId },
+        where: { id: partId },
         select: { partName: true },
       });
 
       return {
-        partId: item.partId,
+        partId,
         partName: part?.partName ?? "Unknown Part",
-        totalQuantityUsed: item._sum.quantityUsed ?? 0,
-        totalRepairs: item._count.repairId,
+        totalQuantityUsed: data.totalQuantity,
+        totalRepairs: data.repairCount.size,
       };
     })
   );
