@@ -157,15 +157,13 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
   try {
     await validateEmailToken(parsed.data.token);
-    return res.status(200).json({
-      success: true,
-      message: "Email verified successfully",
-    });
+    
+    // Redirect to frontend login with a success flag
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    return res.redirect(`${frontendUrl}/login?verified=true`);
   } catch (error: any) {
     logger.error(`[verifyEmail] -> ${error.message}`);
-    return res.status(error.status ?? 500).json({
-      success: false,
-      message: error.message ?? "Unexpected failure",
-    });
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error.message || "Verification failed")}`);
   }
 };

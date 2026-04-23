@@ -19,6 +19,14 @@ export interface RegisterShopRequest {
   tenant_id: string;
   shop_name: string;
   businessRegistration?: string;
+  brn?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  branches?: string;
+  repairTypes?: string[];
+  plan?: string;
   owner: RegisterShopOwner;
 }
 

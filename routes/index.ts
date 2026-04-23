@@ -6,7 +6,10 @@ import shopRouter from "@/routes/shops.routes";
 import repairsRouter from "@/routes/repairs.routes";
 import paymentRouter from "@/routes/payment.routes";
 import subscriptionRouter from "@/routes/subscription.routes";
+import onboardingRouter from "@/routes/onboarding.routes";
+import customersRouter from "@/routes/customers.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
+import { verifyEmail, generateShopIds, registerShop, sendVerification as sendShopVerification } from "@/controllers/shop.controller";
 
 const router = Router();
 
@@ -16,16 +19,26 @@ router.get("/health", (_req, res) => {
   res.status(200).json({ success: true, status: "UP", timestamp: new Date().toISOString() });
 });
 
-router.use("/auth", authRouter);
+// Public routes
+router.use("/v1/auth", authRouter);
+router.get("/v1/users/verify-email", verifyEmail);
+router.use("/v1/onboarding", onboardingRouter);
 
-// Versioned APIs (Public or partially public)
+// Public Shop Onboarding Routes
+router.post("/v1/shops/generate-ids", generateShopIds);
+router.post("/v1/shops/register", registerShop);
+router.post("/v1/shops/send-verification", sendShopVerification);
+
+// Public Payment & Subscription webhooks (must be before authenticate)
 router.use("/v1/payment", paymentRouter);
 router.use("/v1/subscription", subscriptionRouter);
 
+// Protected routes (authentication required)
 router.use(authenticate);
 
-router.use("/users", usersRouter);
-router.use("/shops", shopRouter);
-router.use("/repairs", repairsRouter);
+router.use("/v1/users", usersRouter);
+router.use("/v1/shops", shopRouter);
+router.use("/v1/repairs", repairsRouter);
+router.use("/v1/customers", customersRouter);
 
 export default router;

@@ -61,12 +61,12 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  shops   Shop[]
-  users   User[]
+  shops Shop[]
+  users User[]
 }
 
 model Shop {
-  id                    String             @id @default(cuid())
+  id                    String              @id @default(cuid())
   tenantId              String
   name                  String
   businessRegistration  String?
@@ -78,15 +78,15 @@ model Shop {
   website               String?
   logoUrl               String?
   taxNumber             String?
-  subscriptionPlan      SubscriptionPlan?  @default(SINGLE)
+  subscriptionPlan      SubscriptionPlan?   @default(SINGLE)
   subscriptionStatus    SubscriptionStatus? @default(SUSPENDED)
   subscriptionStartDate DateTime?
   subscriptionEndDate   DateTime?
-  isActive              Boolean            @default(true)
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users     User[]
   customers Customer[]
   devices   Device[]
@@ -98,40 +98,53 @@ model Shop {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  tenantId  String
-  shopId    String?
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopId          String?
+  name            String?
+  email           String   @unique
+  password        String
+  role            UserRole @default(TECHNICIAN)
+  isActive        Boolean  @default(true)
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  email     String   @unique
-  password  String
-  role      UserRole @default(TECHNICIAN)
-  isActive  Boolean  @default(true)
-  isEmailVerified Boolean @default(false)  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  shop   Shop?  @relation(fields: [shopId], references: [id], onDelete: SetNull)
-  repairs  Repair[]
-  refreshTokens RefreshToken[]
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shop                    Shop?                    @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  repairs                 Repair[]
+  refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
   emailLogs               EmailLog[]
 
   @@index([tenantId])
   @@index([shopId])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
 model RefreshToken {
-  id        String   @id
+  id        String    @id
   userId    String
   tenantId  String
   shopId    String?
-
   tokenHash String
   expiresAt DateTime
   revokedAt DateTime?
-
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -144,18 +157,16 @@ model Customer {
   id        String   @id @default(cuid())
   tenantId  String
   shopId    String
-
   name      String
   phone     String?
   email     String?
-
+  address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  devices Device[]
-  repairs Repair[]
+  shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  devices  Device[]
+  repairs  Repair[]
   payments Payment[]
 
   @@index([tenantId])
@@ -163,22 +174,19 @@ model Customer {
 }
 
 model Device {
-  id        String   @id @default(cuid())
-  tenantId  String
-  shopId    String
+  id         String   @id @default(cuid())
+  tenantId   String
+  shopId     String
   customerId String
-
-  brand     String
-  model     String
-  imei      String?
-  serialNo  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  brand      String
+  model      String
+  imei       String?
+  serialNo   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
   repairs  Repair[]
 
   @@index([tenantId])
@@ -188,31 +196,28 @@ model Device {
 }
 
 model Repair {
-  id          String       @id @default(cuid())
-  tenantId    String
-  shopId      String
-  customerId  String
-  deviceId    String
-  reference   String       @unique
-
-  status      RepairStatus @default(NOT_STARTED)
-  issue       String?
-  diagnosis   String?
+  id            String       @id @default(cuid())
+  tenantId      String
+  shopId        String
+  customerId    String
+  deviceId      String
+  reference     String       @unique
+  status        RepairStatus @default(NOT_STARTED)
+  issue         String?
+  diagnosis     String?
   estimatedCost Int?
   finalCost     Int?
   technicianId  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  technician User?  @relation(fields: [technicianId], references: [id], onDelete: SetNull)
-
-  photos Photo[]
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  device        Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  technician    User?          @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  photos        Photo[]
   notifications Notification[]
-  payments Payment[]
+  payments      Payment[]
 
   @@index([tenantId])
   @@index([shopId])
@@ -225,10 +230,8 @@ model Photo {
   id        String   @id @default(cuid())
   tenantId  String
   repairId  String
-
-  // store S3 URL or local URL
   url       String
-  stage     String? // intake/before/during/after
+  stage     String?
   createdAt DateTime @default(now())
 
   repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
@@ -238,16 +241,14 @@ model Photo {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tenantId  String
   repairId  String?
-
-  channel   String  // email/sms/whatsapp
+  channel   String
   to        String
   message   String
-  status    String  @default("PENDING")
-
-  createdAt DateTime @default(now())
+  status    String    @default("PENDING")
+  createdAt DateTime  @default(now())
   sentAt    DateTime?
 
   repair Repair? @relation(fields: [repairId], references: [id], onDelete: SetNull)
@@ -255,6 +256,7 @@ model Notification {
   @@index([tenantId])
   @@index([repairId])
 }
+
 model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
@@ -268,6 +270,7 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([token])
 }
+
 model EmailLog {
   id        String   @id @default(cuid())
   userId    String
@@ -326,4 +329,20 @@ model ShopSettings {
   updatedAt               DateTime @updatedAt
 
   shop Shop @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-}
+}
+
+model RegistrationRequest {
+  id            String   @id @default(cuid())
+  shopName      String
+  ownerEmail    String
+  ownerName     String
+  fullData      Json
+  status        String   @default("PENDING")
+  approvalToken String   @unique
+  paymentId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([approvalToken])
+  @@index([ownerEmail])
+}
