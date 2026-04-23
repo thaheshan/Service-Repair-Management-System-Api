@@ -102,7 +102,7 @@ model Customer {
   name      String
   phone     String?
   email     String?
-
+  address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
