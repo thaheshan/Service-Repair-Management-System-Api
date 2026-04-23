@@ -31,8 +31,14 @@ export const createTenantRepair = async (
     technicianId?: string;
   }
 ) => {
+  const reference = `REP-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
+  
   return prisma.repair.create({
-    data: { tenantId, ...data },
+    data: { 
+      tenantId, 
+      reference,
+      ...data 
+    },
   });
 };
 

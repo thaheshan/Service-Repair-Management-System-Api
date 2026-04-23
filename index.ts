@@ -1,11 +1,15 @@
 import "dotenv/config";
 import app from "./app";
 import { prisma } from "./db/prisma";
+import { initSubscriptionJobs } from "./jobs/subscription.job";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
 const server = app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
+  
+  // Initialize cron jobs
+  initSubscriptionJobs();
 });
 
 async function shutdown(signal: string) {

@@ -1,26 +1,56 @@
 import { Request, Response } from "express";
 import { logger } from "@/config/logger.config";
 import * as paymentService from "@/services/payment/payment.service";
-import { SubscriptionPlan, PaymentMethod, PaymentType } from "@prisma/client";
+import { SubscriptionPlan, PaymentMethod } from "@prisma/client";
+import { env } from "@/config/env";
+import Stripe from "stripe";
+
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
 export const handleStripeWebhook = async (req: Request, res: Response) => {
-  const event = req.body;
+  const sig = req.headers["stripe-signature"];
+  let event: any;
 
-  logger.info(`[handleStripeWebhook] -> Received webhook event: ${event.type}`);
+  try {
+    const rawBody = (req as any).rawBody;
+
+    if (!sig || !rawBody) {
+      logger.error("[handleStripeWebhook] -> Missing stripe-signature or rawBody");
+      return res.status(400).json({ success: false, message: "Webhook signature verification failed" });
+    }
+
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig as string,
+      env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (error: any) {
+    logger.error(`[handleStripeWebhook] -> Signature error: ${error.message}`);
+    return res.status(400).json({ success: false, message: `Webhook Error: ${error.message}` });
+  }
+
+  logger.info(`[handleStripeWebhook] -> Verified event: ${event.type}`);
 
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        const session = event.data.object;
-        const tenantId = session.metadata.tenantId;
-        const plan = session.metadata.plan as SubscriptionPlan;
+        const session = event.data.object as any;
+        
+        // Null guards for metadata
+        const tenantId = session.metadata?.tenantId;
+        const plan = session.metadata?.plan as SubscriptionPlan;
+
+        if (!tenantId || !plan) {
+          logger.error("[handleStripeWebhook] -> Missing tenantId or plan in session metadata");
+          return res.status(400).json({ success: false, message: "Invalid session metadata" });
+        }
         
         logger.info(`[handleStripeWebhook] -> Processing checkout for tenant: ${tenantId}`);
         
         await paymentService.activateShopSubscription(
           tenantId,
           plan,
-          session.amount_total / 100,
+          (session.amount_total || 0) / 100,
           session.id,
           PaymentMethod.CARD
         );
@@ -30,41 +60,48 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         logger.info(`[handleStripeWebhook] -> Unhandled event type: ${event.type}`);
     }
 
-    return res.status(200).json({ received: true });
+    return res.status(200).json({ success: true, received: true });
   } catch (error: any) {
-    logger.error(`[handleStripeWebhook] -> Error: ${error.message}`);
+    logger.error(`[handleStripeWebhook] -> Handler failed: ${error.message}`);
     return res.status(500).json({ 
-      error: "Webhook handler failed", 
+      success: false,
+      message: "Webhook handler failed", 
       details: error.message 
     });
   }
 };
 
 export const verifyBankTransfer = async (req: Request, res: Response) => {
-  const { payment_id, admin_verified } = req.body;
+  const { tenantId, plan, amount, reference, admin_verified } = req.body;
 
-  if (!payment_id || admin_verified !== true) {
-    return res.status(400).json({ success: false, message: "Invalid verification data" });
+  if (!tenantId || !plan || !amount || admin_verified !== true) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing required verification data (tenantId, plan, amount, admin_verified)" 
+    });
   }
 
   try {
-    // In a real scenario, we'd lookup the pending payment/subscription request
-    // and then activate it. For this step, we'll assume the payment_id links to a tenant
-    // or we'll process based on the request.
-    
-    // logic to find the related shop and activate
-    // For now, let's assume the payment_id is the tenantId for demonstration
+    logger.info(`[verifyBankTransfer] -> Manually activating subscription for tenant: ${tenantId}`);
+
     await paymentService.activateShopSubscription(
-      payment_id,
-      SubscriptionPlan.MEDIUM, // Default for manual verify
-      100, // Placeholder
-      `BANK_REF_${Date.now()}`,
+      tenantId,
+      plan as SubscriptionPlan,
+      amount,
+      reference || `BANK_REF_${Date.now()}`,
       PaymentMethod.BANK_TRANSFER
     );
 
-    return res.status(200).json({ success: true, message: "Payment confirmed and subscription activated" });
+    return res.status(200).json({ 
+      success: true, 
+      message: "Payment confirmed and subscription activated" 
+    });
   } catch (error: any) {
     logger.error(`[verifyBankTransfer] -> Error: ${error.message}`);
-    return res.status(500).json({ success: false, message: "Update failed" });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Update failed",
+      details: error.message
+    });
   }
 };

@@ -93,7 +93,7 @@ export const recordManualPayment = async (
       status: PaymentStatus.COMPLETED,
       repairId: data.repairId,
       customerId: data.customerId,
-      receivedByUserId: data.receivedByUserId,
+      userId: data.receivedByUserId,
       notes: data.notes,
     },
   });

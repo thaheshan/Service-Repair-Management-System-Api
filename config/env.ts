@@ -55,4 +55,13 @@ export const env = {
   REDIS_PASSWORD: getEnv("REDIS_PASSWORD", {
     required: true,
   }),
+
+  // ── Stripe ───────────────────────────────────────────
+  STRIPE_SECRET_KEY: getEnv("STRIPE_SECRET_KEY", {
+    required: true,
+  }),
+
+  STRIPE_WEBHOOK_SECRET: getEnv("STRIPE_WEBHOOK_SECRET", {
+    required: true,
+  }),
 } as const;

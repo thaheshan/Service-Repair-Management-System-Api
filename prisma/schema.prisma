@@ -193,6 +193,7 @@ model Repair {
   shopId      String
   customerId  String
   deviceId    String
+  reference   String       @unique
 
   status      RepairStatus @default(NOT_STARTED)
   issue       String?
@@ -294,7 +295,7 @@ model Payment {
   transactionReference String?       @unique
   status               PaymentStatus @default(PENDING)
   paymentDate          DateTime      @default(now())
-  receivedByUserId     String?
+  userId               String?
   notes                String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
