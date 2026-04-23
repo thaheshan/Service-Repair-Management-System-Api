@@ -3,10 +3,12 @@ import repairsRouter from "@/routes/repairs.routes";
 import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
+import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
 import { verifyEmail } from "@/controllers/shop.controller";
 import { Router } from "express";
+import { generateShopIds, registerShop, sendVerification as sendShopVerification } from "@/controllers/shop.controller";
 
 const router = Router();
 
@@ -19,8 +21,14 @@ router.get("/health", (_req, res) => {
 // Public routes
 router.use("/v1/auth", authRouter);
 router.get("/v1/users/verify-email", verifyEmail);
+router.use("/v1/onboarding", onboardingRouter);
 
-// Protected routes
+// Public Shop Onboarding Routes
+router.post("/v1/shops/generate-ids", generateShopIds);
+router.post("/v1/shops/register", registerShop);
+router.post("/v1/shops/send-verification", sendShopVerification);
+
+// Protected routes (authentication required)
 router.use(authenticate);
 
 router.use("/v1/users", usersRouter);
