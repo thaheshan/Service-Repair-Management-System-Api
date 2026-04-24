@@ -5,6 +5,8 @@ import {
   loginUser,
   logoutSession,
   refreshSession,
+  requestPasswordReset,
+  completePasswordReset,
 } from "@/services/auth/auth.service";
 import type { AuthRequest } from "@/types/auth.types";
 
@@ -91,4 +93,45 @@ export const createInitialAdmin = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body as { email?: string };
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required" });
+  }
+
+  try {
+    await requestPasswordReset(email);
+    return res.status(200).json({
+      success: true,
+      message: "If an account with that email exists, a reset link has been sent.",
+    });
+  } catch (error: any) {
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Failed to process forgot password request",
+    });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token || !password) {
+    return res.status(400).json({ success: false, message: "Token and password are required" });
+  }
+
+  try {
+    await completePasswordReset(token, password);
+    return res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully",
+    });
+  } catch (error: any) {
+    return res.status(error.status ?? 500).json({
+      success: false,
+      message: error.message ?? "Failed to reset password",
+    });
+  }
+};
+
 
