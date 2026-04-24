@@ -10,6 +10,13 @@ export const registerShopSchema = z.object({
   tenant_id: z.string().uuid("tenant_id must be a valid UUID"),
   shop_name: z.string().min(1, "shop_name is required"),
   brn: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  phone: z.string().optional(),
+  branches: z.string().optional(),
+  repairTypes: z.array(z.string()).optional(),
+  plan: z.string().optional(),
   owner: z.object({
     name: z.string().min(1, "owner name is required"),
     email: z.string().email("Invalid owner email format"),
