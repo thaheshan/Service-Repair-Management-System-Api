@@ -24,6 +24,7 @@ router.get("/health", (_req, res) => {
 router.use("/v1/auth", authRouter);
 router.get("/v1/users/verify-email", verifyEmail);
 router.use("/v1/onboarding", onboardingRouter);
+router.use("/v1/staff", staffRouter);
 
 // Public Shop Onboarding Routes
 router.post("/v1/shops/generate-ids", generateShopIds);

@@ -40,8 +40,11 @@ export const getShopById = async (req: AuthRequest, res: Response) => {
 
 export const createShop = async (req: AuthRequest, res: Response) => {
   try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ success: false, message: "Missing access token" });
+    }
     const {
-      tenantId,
       shopCode,
       name,
       address,
@@ -49,10 +52,15 @@ export const createShop = async (req: AuthRequest, res: Response) => {
       isActive = true,
       acceptsStaffRegistrations = true,
     } = req.body;
-    if (!tenantId || !name || !shopCode)
-      return res.status(400).json({ success: false, message: "tenantId, shopCode and name are required" });
-    const shop = await prisma.shop.create({
-      data: { tenantId, shopCode, name, address, phone, isActive, acceptsStaffRegistrations },
+    if (!name || !shopCode)
+      return res.status(400).json({ success: false, message: "shopCode and name are required" });
+    const shop = await createTenantShop(tenantId, {
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive,
+      acceptsStaffRegistrations,
     });
     res.status(201).json({ success: true, data: shop });
   } catch (error: any) {
@@ -63,10 +71,18 @@ export const createShop = async (req: AuthRequest, res: Response) => {
 export const updateShop = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ success: false, message: "Missing access token" });
+    }
     const { shopCode, name, address, phone, isActive, acceptsStaffRegistrations } = req.body;
-    const shop = await prisma.shop.update({
-      where: { id },
-      data: { shopCode, name, address, phone, isActive, acceptsStaffRegistrations },
+    const shop = await updateTenantShop(id, tenantId, {
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive,
+      acceptsStaffRegistrations,
     });
     res.status(200).json({ success: true, data: shop });
   } catch (error: any) {

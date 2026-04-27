@@ -46,6 +46,10 @@ export const env = {
     defaultValue: "staff-portal",
   }),
 
+  STAFF_REGISTRATION_SECRET: getEnv("STAFF_REGISTRATION_SECRET", {
+    required: true,
+  }),
+
   // ── Redis ────────────────────────────────────────────
   REDIS_HOST: getEnv("REDIS_HOST", {
     defaultValue: "localhost",

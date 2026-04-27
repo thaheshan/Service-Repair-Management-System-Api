@@ -36,6 +36,9 @@ model Shop {
   id          String   @id @default(cuid())
   tenantId    String
   name        String
+  shopCode    String   @unique
+  isActive    Boolean  @default(true)
+  acceptsStaffRegistrations Boolean @default(true)
   address     String?
   city        String?
   country     String?
@@ -61,8 +64,10 @@ model User {
   tenantId  String
   shopId    String?
 
+  fullName  String
   name      String?
-  email     String   @unique
+  email     String?  @unique
+  phone     String?  @unique
   password  String
   role      UserRole @default(TECHNICIAN)
   isActive  Boolean  @default(true)

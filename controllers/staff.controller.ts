@@ -23,6 +23,8 @@ export const validateShopId = async (req: Request, res: Response) => {
   try {
     const result = await validateShopIdService(parsed.data, {
       request_source: req.header("x-request-source"),
+      request_signature: req.header("x-request-signature"),
+      request_timestamp: req.header("x-request-timestamp"),
     });
 
     return res.status(200).json({
@@ -51,6 +53,8 @@ export const registerStaff = async (req: Request, res: Response) => {
   try {
     const result = await registerStaffService(parsed.data, {
       request_source: req.header("x-request-source"),
+      request_signature: req.header("x-request-signature"),
+      request_timestamp: req.header("x-request-timestamp"),
     });
 
     return res.status(200).json({

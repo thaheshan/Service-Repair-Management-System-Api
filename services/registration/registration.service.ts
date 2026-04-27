@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { RegisterShopRequest } from "@/types/dto/shop.dto";
 import { sendAdminApprovalEmail, sendUserPaymentLinkEmail } from "@/services/email/email.service";
 import { verifyPaymentIntent } from "@/services/stripe/stripe.service";
+import { generateUniqueShopCode } from "@/services/shop/shop.service";
 import bcrypt from "bcrypt";
 
 export const createRegistrationRequest = async (data: RegisterShopRequest) => {
@@ -84,6 +85,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
 
   // atomic creation
   const result = await prisma.$transaction(async (tx) => {
+    const shopCode = await generateUniqueShopCode(tx);
     const tenant = await tx.tenant.create({
       data: { id: data.tenant_id, name: data.shop_name },
     });
@@ -92,6 +94,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
       data: { 
         id: data.shop_id, 
         tenantId: data.tenant_id, 
+        shopCode,
         name: data.shop_name, 
         brn: data.brn,
         address: data.address,
@@ -108,6 +111,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
       data: {
         tenantId: data.tenant_id,
         shopId: data.shop_id,
+        fullName: data.owner.name,
         name: data.owner.name,
         email: data.owner.email,
         password: hashedPassword,
@@ -189,6 +193,7 @@ export const createStaffMember = async (data: any) => {
     data: {
       tenantId: shop.tenantId,
       shopId: shop.id,
+      fullName: `${data.firstName} ${data.lastName}`.trim(),
       name: `${data.firstName} ${data.lastName}`.trim(),
       email: data.email,
       password: hashedPassword,
