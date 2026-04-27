@@ -19,9 +19,4 @@ router.post("/", authorizeRoles("ADMIN", "MANAGER"), createShop);
 router.patch("/:id", authorizeRoles("ADMIN", "MANAGER"), updateShop);
 router.delete("/:id", authorizeRoles("ADMIN"), deleteShop);
 
-// Onboarding
-router.post("/generate-ids", generateShopIds);
-router.post("/register", registerShop);
-router.post("/send-verification", sendVerification);
-
 export default router;

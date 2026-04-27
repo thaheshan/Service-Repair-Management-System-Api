@@ -33,17 +33,19 @@ model Tenant {
 }
 
 model Shop {
-  id        String   @id @default(cuid())
-  shopCode  String   @unique
-  tenantId  String
-  name      String
-  address   String?
-  phone     String?
-  brn       String?  // Business Registration Number
-  isActive  Boolean  @default(true)
-  acceptsStaffRegistrations Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  address     String?
+  city        String?
+  country     String?
+  phone       String?
+  brn         String?  // Business Registration Number
+  branches    String?
+  repairTypes String[]
+  plan        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users     User[]
@@ -59,9 +61,8 @@ model User {
   tenantId  String
   shopId    String?
 
-  fullName  String
-  phone     String?  @unique
-  email     String?  @unique
+  name      String?
+  email     String   @unique
   password  String
   role      UserRole @default(TECHNICIAN)
   isActive  Boolean  @default(true)
@@ -74,10 +75,25 @@ model User {
   repairs  Repair[]
   refreshTokens RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
   emailLogs               EmailLog[]
 
   @@index([tenantId])
   @@index([shopId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }
 
 model RefreshToken {
@@ -107,7 +123,7 @@ model Customer {
   name      String
   phone     String?
   email     String?
-
+  address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -211,6 +227,7 @@ model Notification {
   @@index([tenantId])
   @@index([repairId])
 }
+
 model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
@@ -224,6 +241,7 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([token])
 }
+
 model EmailLog {
   id        String   @id @default(cuid())
   userId    String
@@ -238,4 +256,20 @@ model EmailLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model RegistrationRequest {
+  id            String   @id @default(cuid())
+  shopName      String
+  ownerEmail    String
+  ownerName     String
+  fullData      Json     // Stores all onboarding data from multi-step form
+  status        String   @default("PENDING") // PENDING, APPROVED, PAID, COMPLETED
+  approvalToken String   @unique
+  paymentId     String?  // Stripe PaymentIntent ID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([approvalToken])
+  @@index([ownerEmail])
 }

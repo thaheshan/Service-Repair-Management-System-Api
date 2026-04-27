@@ -5,8 +5,12 @@ import shopsRouter from "@/routes/shops.routes";
 import staffRouter from "@/routes/staff.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
+import onboardingRouter from "@/routes/onboarding.routes";
+import customersRouter from "@/routes/customers.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
+import { verifyEmail } from "@/controllers/shop.controller";
 import { Router } from "express";
+import { generateShopIds, registerShop, sendVerification as sendShopVerification } from "@/controllers/shop.controller";
 
 const router = Router();
 
@@ -16,14 +20,22 @@ router.get("/health", (_req, res) => {
   res.status(200).json({ success: true, status: "UP", timestamp: new Date().toISOString() });
 });
 
-router.use("/auth", authRouter);
+// Public routes
+router.use("/v1/auth", authRouter);
+router.get("/v1/users/verify-email", verifyEmail);
+router.use("/v1/onboarding", onboardingRouter);
 
+// Public Shop Onboarding Routes
+router.post("/v1/shops/generate-ids", generateShopIds);
+router.post("/v1/shops/register", registerShop);
+router.post("/v1/shops/send-verification", sendShopVerification);
+
+// Protected routes (authentication required)
 router.use(authenticate);
 
-router.use("/users", usersRouter);
-router.use("/shops", shopsRouter);
-router.use("/repairs", repairsRouter);
-router.use("/devices", devicesRouter);
-router.use("/staff", staffRouter);
+router.use("/v1/users", usersRouter);
+// router.use("/v1/shops", shopRouter);
+router.use("/v1/repairs", repairsRouter);
+router.use("/v1/customers", customersRouter);
 
 export default router;

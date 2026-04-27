@@ -4,6 +4,9 @@ import { randomToken, sha256Base64Url } from "@/utils/crypto.util";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "@/utils/jwt.util";
 import bcrypt from "bcrypt";
 
+import { sendPasswordResetEmail } from "@/services/email/email.service";
+import { v4 as uuidv4 } from "uuid";
+
 const BCRYPT_ROUNDS = 12;
 
 type TokenUser = {
@@ -200,4 +203,51 @@ export async function createInitialAdminUser(email: string, password: string, te
   });
 
   return user;
+}
+
+export async function requestPasswordReset(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    // Return early to avoid account enumeration, but don't throw error for non-existent users
+    return;
+  }
+
+  const token = uuidv4();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt,
+    },
+  });
+
+  await sendPasswordResetEmail(user.id, user.email, token);
+}
+
+export async function completePasswordReset(token: string, newPassword: string) {
+  const storedToken = await prisma.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!storedToken || storedToken.used || storedToken.expiresAt < new Date()) {
+    throw { status: 400, message: "Invalid or expired reset token" };
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: storedToken.userId },
+      data: { password: passwordHash },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: storedToken.id },
+      data: { used: true },
+    }),
+  ]);
 }
