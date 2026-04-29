@@ -3,6 +3,7 @@ import repairsRouter from "@/routes/repairs.routes";
 import shopRouter from "@/routes/shops.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
+import inventoryRouter from "@/routes/inventory.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
@@ -35,5 +36,6 @@ router.use("/v1/users", usersRouter);
 router.use("/v1/shops", shopRouter);
 router.use("/v1/repairs", repairsRouter);
 router.use("/v1/customers", customersRouter);
+router.use("/v1/inventory", inventoryRouter);
 
 export default router;
