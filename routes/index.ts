@@ -1,6 +1,8 @@
 import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
+import { requireRoles, verifyAccessToken } from "@/middlewares/auth.middleware";
 import repairsRouter from "@/routes/repairs.routes";
-import shopRouter from "@/routes/shops.routes";
+import shopsRouter from "@/routes/shops.routes";
+import staffRouter from "@/routes/staff.routes";
 import usersRouter from "@/routes/users.routes";
 import authRouter from "@/routes/auth.routes";
 import inventoryRouter from "@/routes/inventory.routes";
@@ -9,7 +11,11 @@ import customersRouter from "@/routes/customers.routes";
 import { authenticate } from "@/middlewares/auth.middleware";
 import { verifyEmail } from "@/controllers/shop.controller";
 import { Router } from "express";
-import { generateShopIds, registerShop, sendVerification as sendShopVerification } from "@/controllers/shop.controller";
+import {
+  generateShopIds,
+  registerShop,
+  sendVerification as sendShopVerification,
+} from "@/controllers/shop.controller";
 
 const router = Router();
 
@@ -31,10 +37,10 @@ router.post("/v1/shops/send-verification", sendShopVerification);
 
 // Protected routes (authentication required)
 router.use(authenticate);
-
 router.use("/v1/users", usersRouter);
-router.use("/v1/shops", shopRouter);
+router.use("/v1/shops", shopsRouter);       // fixed: was shopRouter in main
 router.use("/v1/repairs", repairsRouter);
+router.use("/v1/staff", staffRouter);       // from 86ew8mgtg
 router.use("/v1/customers", customersRouter);
 router.use("/v1/inventory", inventoryRouter);
 

@@ -40,10 +40,20 @@ export const getShopById = async (req: AuthRequest, res: Response) => {
 
 export const createShop = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, address, phone } = req.body;
-    if (!name)
-      return res.status(400).json({ success: false, message: "name is required" });
-    const shop = await createTenantShop(req.user!.tenantId, { name, address, phone });
+    const {
+      tenantId,
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive = true,
+      acceptsStaffRegistrations = true,
+    } = req.body;
+    if (!tenantId || !name || !shopCode)
+      return res.status(400).json({ success: false, message: "tenantId, shopCode and name are required" });
+    const shop = await prisma.shop.create({
+      data: { tenantId, shopCode, name, address, phone, isActive, acceptsStaffRegistrations },
+    });
     res.status(201).json({ success: true, data: shop });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create shop" });
@@ -53,8 +63,11 @@ export const createShop = async (req: AuthRequest, res: Response) => {
 export const updateShop = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { name, address, phone } = req.body;
-    const shop = await updateTenantShop(id, req.user!.tenantId, { name, address, phone });
+    const { shopCode, name, address, phone, isActive, acceptsStaffRegistrations } = req.body;
+    const shop = await prisma.shop.update({
+      where: { id },
+      data: { shopCode, name, address, phone, isActive, acceptsStaffRegistrations },
+    });
     res.status(200).json({ success: true, data: shop });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to update shop" });
