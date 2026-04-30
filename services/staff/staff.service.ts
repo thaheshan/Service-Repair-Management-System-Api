@@ -1,5 +1,16 @@
+import { env } from "@/config/env";
 import { prisma } from "@/db/prisma";
+import type {
+  RegisterStaffRequestDto,
+  RegisterStaffResponseDto,
+  StaffAuthContextDto,
+  StaffDashboardContextDto,
+  ValidateShopIdRequestDto,
+  ValidateShopIdResponseDto,
+} from "@/types/dto/staff.dto";
 import { STAFF_ASSIGNABLE_ROLES } from "@/types/staff.types";
+import { ApiError } from "@/utils/common.util";
+import { signAccessToken, type JwtRole } from "@/utils/jwt.util";
 import type { UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
 import type { CreateStaffInput, UpdateStaffInput } from "@/validators/staff/staff.validator";
@@ -21,6 +32,27 @@ export type StaffListRow = {
   name: string;
   role: string;
   isActive: boolean;
+};
+
+const isValidRequestSource = (context: StaffAuthContextDto) => {
+  return context.request_source === env.STAFF_REGISTRATION_SOURCE;
+};
+
+const normalizeError = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2002"
+  ) {
+    return new ApiError(403, "User already registered to a shop");
+  }
+
+  return new ApiError(500, "Unexpected failure");
 };
 
 async function resolveStaffUserId(
@@ -55,17 +87,19 @@ export const listStaffMembers = async (
     select: {
       id: true,
       email: true,
+      fullName: true,
       name: true,
       staffDisplayId: true,
       role: true,
       isActive: true,
+      createdAt: true,
     },
     orderBy: [{ staffDisplayId: "asc" }, { createdAt: "asc" }],
   });
 
   return users.map((u) => ({
     staffId: u.staffDisplayId ?? u.id,
-    name: (u.name && u.name.trim()) || u.email,
+    name: (u.name && u.name.trim()) || (u.fullName && u.fullName.trim()) || u.email || u.id,
     role: roleToLabel(u.role),
     isActive: u.isActive,
   }));
@@ -102,7 +136,7 @@ export const createStaffMember = async (
   const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
 
   try {
-    await (prisma.user as any).create({
+    await prisma.user.create({
       data: {
         tenantId,
         shopId,
@@ -110,10 +144,11 @@ export const createStaffMember = async (
         password: passwordHash,
         role: data.role,
         name: data.name,
+        fullName: data.name,
         phone: data.phone?.trim() ? data.phone.trim() : null,
         staffDisplayId,
-      },
-    } as any);
+      } as any,
+    });
   } catch (error: any) {
     if (error.code === "P2002") {
       const target = Array.isArray(error.meta?.target)
@@ -148,7 +183,10 @@ export const updateStaffMember = async (
     data.password !== undefined ? await bcrypt.hash(data.password, BCRYPT_ROUNDS) : undefined;
 
   const updateData: Record<string, unknown> = {};
-  if (data.name !== undefined) updateData.name = data.name;
+  if (data.name !== undefined) {
+    updateData.name = data.name;
+    updateData.fullName = data.name;
+  }
   if (data.email !== undefined) updateData.email = data.email;
   if (data.phone !== undefined) updateData.phone = data.phone === null ? null : data.phone.trim() || null;
   if (data.role !== undefined) updateData.role = data.role;
@@ -201,4 +239,145 @@ export const deactivateStaffMember = async (
     }
     throw error;
   }
+};
+
+export const validateShopIdService = async (
+  payload: ValidateShopIdRequestDto,
+  context: StaffAuthContextDto,
+): Promise<ValidateShopIdResponseDto> => {
+  if (!isValidRequestSource(context)) {
+    throw new ApiError(401, "Invalid request source");
+  }
+
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { shopCode: payload.shop_id },
+      select: { shopCode: true, isActive: true, acceptsStaffRegistrations: true },
+    });
+
+    if (!shop) {
+      throw new ApiError(400, "Invalid Shop ID");
+    }
+
+    if (!shop.isActive || !shop.acceptsStaffRegistrations) {
+      throw new ApiError(403, "Shop disabled or registration locked");
+    }
+
+    return { shop_id: shop.shopCode };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+};
+
+export const registerStaffService = async (
+  payload: RegisterStaffRequestDto,
+  context: StaffAuthContextDto,
+): Promise<RegisterStaffResponseDto> => {
+  if (!isValidRequestSource(context)) {
+    throw new ApiError(401, "Invalid request source");
+  }
+
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { shopCode: payload.shop_id },
+      select: {
+        id: true,
+        shopCode: true,
+        tenantId: true,
+        isActive: true,
+        acceptsStaffRegistrations: true,
+      },
+    });
+
+    if (!shop) {
+      throw new ApiError(400, "Invalid Shop ID");
+    }
+
+    if (!shop.isActive || !shop.acceptsStaffRegistrations) {
+      throw new ApiError(403, "Shop disabled or registration locked");
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: { phone: payload.phone },
+      select: { id: true, shopId: true },
+    });
+
+    if (existingUser?.shopId && existingUser.shopId !== shop.id) {
+      throw new ApiError(403, "User already registered to another shop");
+    }
+
+    if (existingUser?.shopId === shop.id) {
+      throw new ApiError(403, "User already registered to this shop");
+    }
+
+    const hashedPassword = await bcrypt.hash(payload.password, BCRYPT_ROUNDS);
+
+    const user = await prisma.user.create({
+      data: {
+        fullName: payload.full_name,
+        name: payload.full_name,
+        phone: payload.phone,
+        email: null,
+        password: hashedPassword,
+        role: payload.role,
+        tenantId: shop.tenantId,
+        shopId: shop.id,
+        isActive: true,
+      } as any,
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        role: true,
+        tenantId: true,
+        shopId: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    const accessToken = signAccessToken({
+      sub: user.id,
+      email: "",
+      role: user.role as JwtRole,
+      shopId: user.shopId,
+      tenantId: user.tenantId,
+    });
+
+    return {
+      staff: {
+        ...user,
+        role: user.role as JwtRole,
+      },
+      access_token: accessToken,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+};
+
+export const getStaffDashboardContextService = async (
+  userId: string,
+): Promise<StaffDashboardContextDto | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      role: true,
+      tenantId: true,
+      shopId: true,
+      isActive: true,
+    },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    ...user,
+    role: user.role as JwtRole,
+  };
 };

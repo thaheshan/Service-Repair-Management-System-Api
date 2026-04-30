@@ -42,6 +42,10 @@ export const env = {
     defaultValue: "crezio-api",
   }),
 
+  STAFF_REGISTRATION_SOURCE: getEnv("STAFF_REGISTRATION_SOURCE", {
+    defaultValue: "staff-portal",
+  }),
+
   // ── Redis ──────────────────────────────────────────────
   REDIS_URL: getEnv("REDIS_URL", {
     defaultValue: "",

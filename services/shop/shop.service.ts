@@ -47,7 +47,7 @@ export const createShopIds = async (
 export const shopRegister = async (
   data: RegisterShopRequest
 ): Promise<RegisterShopResponse> => {
-  const { shop_id, tenant_id, shop_name, brn, owner } = data;
+  const { shop_id, tenant_id, shop_name, brn, address, city, country, phone, branches, repairTypes, plan, owner } = data;
 
   logger.info(`[shopRegister] -> Starting registration for shop: ${shop_name}`);
 
@@ -55,19 +55,32 @@ export const shopRegister = async (
 
   logger.info(`[shopRegister] -> Starting atomic transaction`);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const tenant = await tx.tenant.create({
       data: { id: tenant_id, name: shop_name },
     });
 
     const shop = await tx.shop.create({
-      data: { id: shop_id, tenantId: tenant_id, name: shop_name, brn },
+      data: { 
+        id: shop_id, 
+        tenantId: tenant_id, 
+        name: shop_name, 
+        brn,
+        address,
+        city,
+        country,
+        phone,
+        branches,
+        repairTypes: repairTypes || [],
+        plan
+      },
     });
 
     const user = await tx.user.create({
       data: {
         tenantId: tenant_id,
         shopId: shop_id,
+        name: owner.name,
         email: owner.email,
         password: hashedPassword,
         role: "ADMIN",
@@ -161,7 +174,7 @@ export const validateEmailToken = async (token: string): Promise<void> => {
 
   logger.info(`[validateEmailToken] -> Token valid, verifying user`);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.user.update({
       where: { id: verificationToken.userId },
       data: { isEmailVerified: true },
@@ -196,11 +209,12 @@ export const getTenantShopById = async (id: string, tenantId: string) => {
 
 export const createTenantShop = async (
   tenantId: string,
-  data: { name: string; address?: string; phone?: string }
+  data: { shopCode: string; name: string; address?: string; phone?: string }
 ) => {
   return prisma.shop.create({
     data: {
       tenantId,
+      shopCode: data.shopCode,
       name: data.name,
       address: data.address,
       phone: data.phone,
