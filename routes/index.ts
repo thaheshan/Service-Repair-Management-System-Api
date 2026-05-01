@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
-import { authenticate, requireRoles, verifyAccessToken } from "@/middlewares/auth.middleware";
+import { authenticate } from "@/middlewares/auth.middleware";
 import authRouter from "@/routes/auth.routes";
 import usersRouter from "@/routes/users.routes";
 import shopsRouter from "@/routes/shops.routes";

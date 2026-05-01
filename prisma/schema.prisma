@@ -111,6 +111,7 @@ model User {
   shopId          String?
   fullName        String
   name            String?
+  staffDisplayId  String?
   email           String?  @unique
   phone           String?  @unique
   password        String
@@ -382,6 +383,7 @@ model ShopSettings {
   currency                String   @default("LKR")
   timezone                String?
   dateFormat              String?
+  featureFlags            Json?
   updatedAt               DateTime @updatedAt
 
   shop Shop @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -401,4 +403,17 @@ model RegistrationRequest {
 
   @@index([approvalToken])
   @@index([ownerEmail])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  adminId   String
+  flagName  String
+  oldVal    Boolean
+  newVal    Boolean
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([adminId])
 }

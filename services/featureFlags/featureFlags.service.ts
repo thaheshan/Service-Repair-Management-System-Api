@@ -50,7 +50,7 @@ export async function updateFeatureFlag(
 
   const newMerged = mergeFlags(updated.featureFlags);
 
-  await prisma.auditLogs.create({
+  await prisma.auditLog.create({
     data: {
       tenantId,
       adminId,

@@ -151,7 +151,7 @@ export const shopRegister = async (
     logger.error(`[shopRegister] -> Failed to send verification email to: ${owner.email}`);
   }
 
-  return result;
+  return result as RegisterShopResponse;
 };
 
 export const sendEmailVerification = async (
