@@ -12,8 +12,7 @@ export const sendVerificationEmail = async (
   token: string
 ) => {
   const verificationUrl = `${process.env.APP_URL}/api/users/verify-email?token=${token}`;
-  
-  // ALWAYS Log to console for development convenience
+
   console.log("\n-------------------------------------------");
   console.log("🛠️  [DEV] EMAIL VERIFICATION LINK GENERATED");
   console.log(`📧 To: ${email}`);
@@ -56,9 +55,8 @@ export const sendPasswordResetEmail = async (
   email: string,
   token: string
 ) => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
-  
-  // ALWAYS Log to console for development convenience
+  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+
   console.log("\n-------------------------------------------");
   console.log("🛠️  [DEV] PASSWORD RESET LINK GENERATED");
   console.log(`📧 To: ${email}`);
@@ -91,6 +89,7 @@ export const sendPasswordResetEmail = async (
       if (attempts < MAX_RETRIES) await sleep(RETRY_DELAY_MS);
     }
   }
+
   throw lastError;
 };
 
@@ -130,8 +129,60 @@ export const sendAdminApprovalEmail = async (request: any) => {
   });
 };
 
+export const sendPaymentConfirmationEmail = async (
+  userId: string,
+  email: string,
+  amount: number,
+  plan: string
+) => {
+  let attempts = 0;
+  let lastError: any = null;
+
+  while (attempts < MAX_RETRIES) {
+    attempts++;
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject: "Payment Confirmation - SRM",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h2 style="color: #4F46E5;">Payment Received</h2>
+            <p style="color: #374151;">We have successfully received your payment of <b>LKR ${amount}</b>.</p>
+            <p style="color: #374151;">Your subscription plan <b>${plan}</b> is now active.</p>
+            <p style="color: #374151;">Thank you for choosing Service Repair Management System!</p>
+          </div>
+        `,
+      });
+
+      await prisma.emailLog.create({
+        data: { userId, email, type: "payment_confirmation", status: "SENT", attempts },
+      });
+
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Payment confirmation email attempt ${attempts} failed:`, error.message);
+      if (attempts < MAX_RETRIES) await sleep(RETRY_DELAY_MS);
+    }
+  }
+
+  await prisma.emailLog.create({
+    data: {
+      userId,
+      email,
+      type: "payment_confirmation",
+      status: "FAILED",
+      attempts,
+      error: lastError?.message ?? "Unknown error",
+    },
+  });
+
+  throw lastError;
+};
+
 export const sendUserPaymentLinkEmail = async (request: any) => {
-  const paymentUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/registration/payment?requestId=${request.id}`;
+  const paymentUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/registration/payment?requestId=${request.id}`;
 
   console.log("\n-------------------------------------------");
   console.log("🛠️  [DEV] USER PAYMENT LINK GENERATED");

@@ -1,16 +1,15 @@
 import { prisma } from "@/db/prisma";
-import type { DashboardAuthContext, TodayRepairsResponse } from "@/types/dto/dashboard.dto";
 import { logger } from "@/config/logger.config";
+import type { DashboardAuthContext, TodayRepairsResponse } from "@/types/dto/dashboard.dto";
+import type { AuthRole } from "@/types/auth.types";
 
 export const getTodayRepairs = async (
   auth: DashboardAuthContext
 ): Promise<TodayRepairsResponse> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-
   const date = today.toISOString().split("T")[0];
 
   logger.info(`[getTodayRepairs] -> Fetching today's repairs for role: ${auth.role}`);
@@ -36,7 +35,23 @@ export const getTodayRepairs = async (
       createdAt: { gte: today, lt: tomorrow },
     },
   });
-
   logger.info(`[getTodayRepairs] -> Total repairs today: ${count}`);
   return { todayRepairs: count, date };
 };
+
+export async function countPendingRepairs(params: {
+  tenantId: string;
+  shopId: string | null;
+  role: AuthRole;
+  userId: string;
+}) {
+  const { tenantId, shopId, role, userId } = params;
+  return prisma.repair.count({
+    where: {
+      tenantId,
+      ...(shopId ? { shopId } : {}),
+      status: { in: ["NOT_STARTED", "IN_PROGRESS"] },
+      ...(role === "TECHNICIAN" ? { technicianId: userId } : {}),
+    },
+  });
+}

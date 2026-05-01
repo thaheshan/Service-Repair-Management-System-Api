@@ -29,10 +29,10 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
 
 export const createUser = async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password, role, shopId } = req.body;
+    const { email, password, role, shopId, fullName } = req.body;
     if (!email || !password)
       return res.status(400).json({ success: false, message: "email and password are required" });
-    const user = await createTenantUser(req.user!.tenantId, { email, password, role, shopId });
+    const user = await createTenantUser(req.user!.tenantId, { email, password, role, shopId, fullName });
     res.status(201).json({ success: true, data: user });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create user" });

@@ -1,0 +1,27 @@
+import { Request, Response } from "express";
+import { logger } from "@/config/logger.config";
+import * as subscriptionService from "@/services/subscription/subscription.service";
+
+/**
+ * Controller to trigger manual subscription expiry check (Internal/Admin only)
+ */
+export const checkSubscriptionExpiry = async (req: Request, res: Response) => {
+  logger.info(`[checkSubscriptionExpiry] -> Running manual expiry check trigger`);
+
+  try {
+    const result = await subscriptionService.checkAndSuspendExpiredSubscriptions();
+
+    return res.status(200).json({ 
+      success: true, 
+      message: `${result.count} subscriptions processed`,
+      affectedCount: result.count 
+    });
+  } catch (error: any) {
+    logger.error(`[checkSubscriptionExpiry] -> Trigger failed: ${error.message}`);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Scheduler trigger failed",
+      details: error.message
+    });
+  }
+};

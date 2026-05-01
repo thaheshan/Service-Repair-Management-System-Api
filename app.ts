@@ -13,7 +13,12 @@ const app: Application = express();
 
 app.use(
   express.json({
-    limit: "5mb", // TO be moved to config,
+    limit: "5mb",
+    verify: (req: any, _res, buf) => {
+      if (req.originalUrl.includes("/webhook")) {
+        req.rawBody = buf;
+      }
+    },
   }),
 );
 
@@ -39,6 +44,7 @@ if (process.env.NODE_ENV === "production") {
 
 
 app.use("/api", router);
+app.use("/v1/api", router);
 // 404 then error handler (must be last)
 app.use(notFoundMiddleware);
 

@@ -25,13 +25,20 @@ export const getTenantUserById = async (id: string, tenantId: string) => {
 
 export const createTenantUser = async (
   tenantId: string,
-  data: { email: string; password: string; role: "ADMIN" | "MANAGER" | "TECHNICIAN" | "CUSTOMER"; shopId?: string | null }
+  data: {
+    email: string;
+    password: string;
+    role: "ADMIN" | "MANAGER" | "TECHNICIAN" | "CUSTOMER";
+    shopId?: string | null;
+    fullName?: string;
+  }
 ) => {
   const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
   try {
     return await prisma.user.create({
       data: {
         email: data.email,
+        fullName: data.fullName ?? data.email,
         password: passwordHash,
         role: data.role,
         tenantId,

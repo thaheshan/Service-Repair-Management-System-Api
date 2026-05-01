@@ -18,6 +18,7 @@ export interface RegisterShopRequest {
   shop_id: string;
   tenant_id: string;
   shop_name: string;
+  businessRegistration?: string;
   brn?: string;
   address?: string;
   city?: string;
@@ -38,7 +39,7 @@ export interface RegisterShopResponse {
   shop: {
     id: string;
     name: string;
-    brn: string | null;
+    businessRegistration: string | null;
     tenantId: string;
     createdAt: Date;
   };

@@ -40,10 +40,28 @@ export const getShopById = async (req: AuthRequest, res: Response) => {
 
 export const createShop = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, address, phone } = req.body;
-    if (!name)
-      return res.status(400).json({ success: false, message: "name is required" });
-    const shop = await createTenantShop(req.user!.tenantId, { name, address, phone });
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ success: false, message: "Missing access token" });
+    }
+    const {
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive = true,
+      acceptsStaffRegistrations = true,
+    } = req.body;
+    if (!name || !shopCode)
+      return res.status(400).json({ success: false, message: "shopCode and name are required" });
+    const shop = await createTenantShop(tenantId, {
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive,
+      acceptsStaffRegistrations,
+    });
     res.status(201).json({ success: true, data: shop });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create shop" });
@@ -53,8 +71,19 @@ export const createShop = async (req: AuthRequest, res: Response) => {
 export const updateShop = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { name, address, phone } = req.body;
-    const shop = await updateTenantShop(id, req.user!.tenantId, { name, address, phone });
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ success: false, message: "Missing access token" });
+    }
+    const { shopCode, name, address, phone, isActive, acceptsStaffRegistrations } = req.body;
+    const shop = await updateTenantShop(id, tenantId, {
+      shopCode,
+      name,
+      address,
+      phone,
+      isActive,
+      acceptsStaffRegistrations,
+    });
     res.status(200).json({ success: true, data: shop });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to update shop" });
@@ -157,8 +186,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
   try {
     await validateEmailToken(parsed.data.token);
-    
-    // Redirect to frontend login with a success flag
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     return res.redirect(`${frontendUrl}/login?verified=true`);
   } catch (error: any) {
