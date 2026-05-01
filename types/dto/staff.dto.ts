@@ -16,6 +16,8 @@ export interface RegisterStaffRequestDto {
 
 export interface StaffAuthContextDto {
   request_source?: string;
+  request_signature?: string;
+  request_timestamp?: string;
 }
 
 export interface ValidateShopIdResponseDto {

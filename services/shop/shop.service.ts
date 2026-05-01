@@ -1,4 +1,5 @@
 import { prisma } from "@/db/prisma";
+import type { Prisma } from "@prisma/client";
 import { sendVerificationEmail } from "@/services/email/email.service";
 import {
   GenerateShopIdsRequest,
@@ -8,7 +9,33 @@ import {
 } from "@/types/dto/shop.dto";
 import { logger } from "@/config/logger.config";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
+
+const SHOP_CODE_PREFIX = "SHOP-";
+const SHOP_CODE_BYTES = 4;
+const SHOP_CODE_ATTEMPTS = 5;
+
+type ShopCodeClient = {
+  shop: {
+    findUnique: (args: {
+      where: { shopCode: string };
+      select: { id: true };
+    }) => Promise<{ id: string } | null>;
+  };
+};
+
+export const generateUniqueShopCode = async (client: ShopCodeClient): Promise<string> => {
+  for (let attempt = 0; attempt < SHOP_CODE_ATTEMPTS; attempt += 1) {
+    const candidate = `${SHOP_CODE_PREFIX}${crypto.randomBytes(SHOP_CODE_BYTES).toString("hex").toUpperCase()}`;
+    const existing = await client.shop.findUnique({ where: { shopCode: candidate }, select: { id: true } });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  throw { status: 500, message: "Unable to allocate a unique shop code" };
+};
 
 export const createShopIds = async (
   data: GenerateShopIdsRequest
@@ -47,7 +74,17 @@ export const createShopIds = async (
 export const shopRegister = async (
   data: RegisterShopRequest
 ): Promise<RegisterShopResponse> => {
-  const { shop_id, tenant_id, shop_name, brn, address, city, country, phone, branches, repairTypes, plan, owner } = data;
+  const {
+    shop_id,
+    tenant_id,
+    shop_name,
+    businessRegistration,
+    address,
+    city,
+    phone,
+    plan,
+    owner,
+  } = data;
 
   logger.info(`[shopRegister] -> Starting registration for shop: ${shop_name}`);
 
@@ -55,24 +92,24 @@ export const shopRegister = async (
 
   logger.info(`[shopRegister] -> Starting atomic transaction`);
 
-  const result = await prisma.$transaction(async (tx: any) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const shopCode = await generateUniqueShopCode(tx);
+
     const tenant = await tx.tenant.create({
       data: { id: tenant_id, name: shop_name },
     });
 
     const shop = await tx.shop.create({
-      data: { 
-        id: shop_id, 
-        tenantId: tenant_id, 
-        name: shop_name, 
-        brn,
+      data: {
+        id: shop_id,
+        tenantId: tenant_id,
+        shopCode,
+        name: shop_name,
+        businessRegistration,
         address,
         city,
-        country,
         phone,
-        branches,
-        repairTypes: repairTypes || [],
-        plan
+        subscriptionPlan: plan as any,
       },
     });
 
@@ -80,6 +117,7 @@ export const shopRegister = async (
       data: {
         tenantId: tenant_id,
         shopId: shop_id,
+        fullName: owner.name,
         name: owner.name,
         email: owner.email,
         password: hashedPassword,
@@ -174,7 +212,7 @@ export const validateEmailToken = async (token: string): Promise<void> => {
 
   logger.info(`[validateEmailToken] -> Token valid, verifying user`);
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.user.update({
       where: { id: verificationToken.userId },
       data: { isEmailVerified: true },
@@ -209,14 +247,24 @@ export const getTenantShopById = async (id: string, tenantId: string) => {
 
 export const createTenantShop = async (
   tenantId: string,
-  data: { name: string; address?: string; phone?: string }
+  data: {
+    shopCode: string;
+    name: string;
+    address?: string;
+    phone?: string;
+    isActive?: boolean;
+    acceptsStaffRegistrations?: boolean;
+  }
 ) => {
   return prisma.shop.create({
     data: {
       tenantId,
+      shopCode: data.shopCode,
       name: data.name,
       address: data.address,
       phone: data.phone,
+      isActive: data.isActive ?? true,
+      acceptsStaffRegistrations: data.acceptsStaffRegistrations ?? true,
     },
   });
 };
@@ -224,7 +272,14 @@ export const createTenantShop = async (
 export const updateTenantShop = async (
   id: string,
   tenantId: string,
-  data: { name?: string; address?: string; phone?: string }
+  data: {
+    shopCode?: string;
+    name?: string;
+    address?: string;
+    phone?: string;
+    isActive?: boolean;
+    acceptsStaffRegistrations?: boolean;
+  }
 ) => {
   try {
     return await prisma.shop.update({

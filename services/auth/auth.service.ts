@@ -91,7 +91,7 @@ export async function loginUser(email: string, password: string) {
 
   const tokens = await createTokensForUser({
     id: user.id,
-    email: user.email,
+    email: user.email ?? email,
     role: user.role,
     tenantId: user.tenantId,
     shopId: user.shopId,
@@ -130,7 +130,7 @@ export async function refreshSession(refreshToken: string) {
   const user = stored.user;
   const tokens = await createTokensForUser({
     id: user.id,
-    email: user.email,
+    email: user.email ?? "",
     role: user.role,
     tenantId: user.tenantId,
     shopId: user.shopId,
@@ -192,9 +192,11 @@ export async function createInitialAdminUser(email: string, password: string, te
   });
 
   const passwordHash = await hashPassword(password);
+  const fallbackFullName = email.split("@")[0] || tenantName;
   const user = await prisma.user.create({
     data: {
       email,
+      fullName: fallbackFullName,
       password: passwordHash,
       role: "ADMIN",
       tenantId: tenant.id,
@@ -226,7 +228,8 @@ export async function requestPasswordReset(email: string) {
     },
   });
 
-  await sendPasswordResetEmail(user.id, user.email, token);
+  // This endpoint is email-driven, so user.email should exist for matched rows.
+  await sendPasswordResetEmail(user.id, user.email ?? email, token);
 }
 
 export async function completePasswordReset(token: string, newPassword: string) {
