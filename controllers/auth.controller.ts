@@ -11,14 +11,21 @@ import {
 import type { AuthRequest } from "@/types/auth.types";
 
 export const login = async (req: Request, res: Response) => {
+  console.log(`[LoginController] Login attempt:`, JSON.stringify(req.body));
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
+    console.log(`[LoginController] Missing credentials`);
     return res.status(400).json({ success: false, message: "email and password are required" });
   }
 
   try {
-    const data = await loginUser(email, password);
-    return res.status(200).json({ success: true, data });
+    const { user, tokens } = await loginUser(email, password);
+    return res.status(200).json({ 
+      success: true, 
+      user, 
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken 
+    });
   } catch (error: any) {
     return res.status(error.status ?? 500).json({
       success: false,

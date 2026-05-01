@@ -2,10 +2,10 @@ import { Request } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 export const apiRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP
-  standardHeaders: true, // RateLimit-* headers
-  legacyHeaders: false, // Disable X-RateLimit-* headers
+  windowMs: 1 * 60 * 1000, 
+  max: 10000, // Effectively disabled
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     message: "Too many requests, please try again later.",
@@ -13,8 +13,8 @@ export const apiRateLimiter = rateLimit({
 });
 
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 login attempts per window
+  windowMs: 1 * 60 * 1000,
+  max: 10000, // Effectively disabled
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {

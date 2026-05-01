@@ -77,17 +77,26 @@ async function createTokensForUser(user: TokenUser) {
 
 export async function loginUser(email: string, password: string) {
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: email.toLowerCase() },
   });
 
-  if (!user || !user.isActive) {
+  if (!user) {
+    console.log(`[AuthService] LOGIN FAILED: User not found for email: ${email}`);
+    throw { status: 401, message: "Invalid credentials" };
+  }
+
+  if (!user.isActive) {
+    console.log(`[AuthService] LOGIN FAILED: User is inactive: ${email}`);
     throw { status: 401, message: "Invalid credentials" };
   }
 
   const ok = await verifyPassword(password, user.password);
   if (!ok) {
+    console.log(`[AuthService] LOGIN FAILED: Password mismatch for user: ${email}`);
     throw { status: 401, message: "Invalid credentials" };
   }
+
+  console.log(`[AuthService] LOGIN SUCCESS: ${email} (Role: ${user.role})`);
 
   const tokens = await createTokensForUser({
     id: user.id,

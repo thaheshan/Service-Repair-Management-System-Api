@@ -45,21 +45,33 @@ export const approveRegistrationRequest = async (token: string) => {
   });
 
   if (!request) throw { status: 404, message: "Registration request not found" };
-  if (request.status !== "PENDING") throw { status: 400, message: `Request is already ${request.status}` };
+  
+  if (request.status === "COMPLETED") throw { status: 400, message: "Request is already COMPLETED" };
+  
+  // In development, allow APPROVED requests to be finalized again if they are stuck
+  if (request.status !== "PENDING" && (process.env.NODE_ENV !== 'development' || request.status !== "APPROVED")) {
+    throw { status: 400, message: `Request is already ${request.status}` };
+  }
 
   const updatedRequest = await prisma.registrationRequest.update({
     where: { id: request.id },
     data: { status: "APPROVED" }
   });
 
-  try {
-    await sendUserPaymentLinkEmail(updatedRequest);
-    logger.info(`[RegistrationService] Payment link sent to user: ${request.ownerEmail}`);
-  } catch (error) {
-    logger.error(`[RegistrationService] Failed to send payment email: ${error}`);
+  // DEVELOPMENT BYPASS: Automatically finalize if in development
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`[RegistrationService] DEV MODE: Auto-finalizing registration for ${request.id}`);
+    await finalizeRegistration(request.id, "DEV_MOCK_PAYMENT");
+  } else {
+    try {
+      await sendUserPaymentLinkEmail(updatedRequest);
+      logger.info(`[RegistrationService] Payment link sent to user: ${request.ownerEmail}`);
+    } catch (error) {
+      logger.error(`[RegistrationService] Failed to send payment email: ${error}`);
+    }
   }
 
-  return { message: "Registration approved successfully" };
+  return { message: "Registration approved and account finalized successfully" };
 };
 
 export const finalizeRegistration = async (requestId: string, paymentIntentId: string) => {
@@ -84,61 +96,101 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
   const hashedPassword = await bcrypt.hash(data.owner.password, 10);
 
   // atomic creation
-  const result = await prisma.$transaction(async (tx) => {
-    const shopCode = await generateUniqueShopCode(tx);
-    const tenant = await tx.tenant.create({
-      data: { id: data.tenant_id, name: data.shop_name },
+  try {
+    logger.info(`[RegistrationService] Starting transaction for request: ${requestId}`);
+    const result = await prisma.$transaction(async (tx) => {
+      const shopCode = await generateUniqueShopCode(tx);
+      
+      logger.info(`[RegistrationService] Upserting tenant: ${data.tenant_id}`);
+      const tenant = await tx.tenant.upsert({
+        where: { id: data.tenant_id },
+        update: { name: data.shop_name },
+        create: { id: data.tenant_id, name: data.shop_name },
+      });
+
+      logger.info(`[RegistrationService] Upserting shop: ${data.shop_id}`);
+      const shop = await tx.shop.upsert({
+        where: { id: data.shop_id },
+        update: {
+          name: data.shop_name,
+          brn: data.brn,
+          address: data.address,
+          city: data.city,
+          phone: data.phone,
+        },
+        create: { 
+          id: data.shop_id, 
+          tenantId: data.tenant_id, 
+          shopCode,
+          name: data.shop_name, 
+          brn: data.brn,
+          address: data.address,
+          city: data.city,
+          country: data.country,
+          phone: data.phone,
+          branches: data.branches,
+          repairTypes: data.repairTypes || [],
+          plan: data.plan,
+          subscriptionStatus: 'ACTIVE',
+          subscriptionStartDate: new Date(),
+          isActive: true
+        },
+      });
+
+      logger.info(`[RegistrationService] Upserting admin user: ${data.owner.email.toLowerCase()}`);
+      const user = await tx.user.upsert({
+        where: { email: data.owner.email.toLowerCase() },
+        update: {
+          password: hashedPassword,
+          fullName: data.owner.name,
+          role: "ADMIN",
+          isActive: true,
+          isEmailVerified: true
+        },
+        create: {
+          tenantId: data.tenant_id,
+          shopId: data.shop_id,
+          fullName: data.owner.name,
+          name: data.owner.name,
+          email: data.owner.email.toLowerCase(),
+          password: hashedPassword,
+          role: "ADMIN",
+          isEmailVerified: true,
+          isActive: true
+        }
+      });
+
+      logger.info(`[RegistrationService] Marking request as COMPLETED: ${requestId}`);
+      await tx.registrationRequest.update({
+        where: { id: requestId },
+        data: { status: "COMPLETED", paymentId: paymentIntentId }
+      });
+
+      return { tenant, shop, user };
     });
 
-    const shop = await tx.shop.create({
-      data: { 
-        id: data.shop_id, 
-        tenantId: data.tenant_id, 
-        shopCode,
-        name: data.shop_name, 
-        brn: data.brn,
-        address: data.address,
-        city: data.city,
-        country: data.country,
-        phone: data.phone,
-        branches: data.branches,
-        repairTypes: data.repairTypes || [],
-        plan: data.plan
-      },
-    });
-
-    const user = await tx.user.create({
-      data: {
-        tenantId: data.tenant_id,
-        shopId: data.shop_id,
-        fullName: data.owner.name,
-        name: data.owner.name,
-        email: data.owner.email,
-        password: hashedPassword,
-        role: "ADMIN",
-        isEmailVerified: true // Already verified via this flow effectively
-      }
-    });
-
-    // Mark request as completed
-    await tx.registrationRequest.update({
-      where: { id: requestId },
-      data: { status: "COMPLETED", paymentId: paymentIntentId }
-    });
-
-    return { tenant, shop, user };
-  });
-
-  return result;
+    logger.info(`[RegistrationService] Registration finalized successfully for ${data.owner.email}`);
+    return result;
+  } catch (error: any) {
+    logger.error(`[RegistrationService] TRANSACTION FAILED: ${error.message}`);
+    throw { status: 500, message: `Finalization failed: ${error.message}` };
+  }
 };
 
 export const getRegistrationRequestStatus = async (id: string) => {
   const request = await prisma.registrationRequest.findUnique({
     where: { id },
-    select: { id: true, status: true, shopName: true, ownerEmail: true }
+    select: { id: true, status: true, shopName: true, ownerEmail: true, ownerName: true }
   });
   if (!request) throw { status: 404, message: "Request not found" };
   return request;
+};
+
+export const getAllRegistrationRequests = async (status?: string) => {
+  return await prisma.registrationRequest.findMany({
+    where: status ? { status: status as any } : {},
+    orderBy: { createdAt: "desc" }
+  });
 };
 
 export const resendAdminApprovalEmail = async (id: string) => {

@@ -7,6 +7,9 @@ const router = Router();
 // Public webhook (No authentication, Stripe will call this)
 router.post("/webhook", paymentController.handleStripeWebhook);
 
+// PayHere notification (No authentication)
+router.post("/payhere-notify", paymentController.handlePayHereNotify);
+
 // Admin only bank verification
 router.post(
   "/bank-verify", 

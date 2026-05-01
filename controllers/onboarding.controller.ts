@@ -36,6 +36,66 @@ export const getStatus = async (req: Request, res: Response) => {
   }
 };
 
+export const listRequests = async (req: Request, res: Response) => {
+  try {
+    const { status } = req.query;
+    const result = await registrationService.getAllRegistrationRequests(status as string);
+    return res.json({ success: true, data: result });
+  } catch (error: any) {
+    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
+  }
+};
+
+import * as payhereService from "@/services/payment/payhere.service";
+
+export const createPayHereParams = async (req: Request, res: Response) => {
+  try {
+    const { requestId } = req.body;
+    const request = await registrationService.getRegistrationRequestStatus(requestId);
+    
+    if (request.status !== "APPROVED") {
+      return res.status(400).json({ message: "Registration not yet approved by admin" });
+    }
+
+    const config = payhereService.getPayHereConfig();
+    const fee = parseFloat(process.env.REGISTRATION_FEE_LKR || "2500");
+    const currency = "LKR";
+    
+    const hash = payhereService.generatePayHereHash(
+      config.merchant_id,
+      requestId,
+      fee,
+      currency,
+      config.merchant_secret
+    );
+
+    const params = {
+      merchant_id: config.merchant_id,
+      return_url: `${process.env.FRONTEND_URL}/payment-success`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
+      notify_url: `${process.env.BACKEND_URL}/api/v1/payment/payhere-notify`,
+      order_id: requestId,
+      items: `Subscription: ${request.shopName}`,
+      currency,
+      amount: fee.toFixed(2),
+      hash,
+      // User info
+      first_name: request.ownerName.split(" ")[0],
+      last_name: request.ownerName.split(" ").slice(1).join(" ") || "Owner",
+      email: request.ownerEmail,
+      phone: "0000000000", // Should be fetched from request.fullData if available
+      address: "Address", 
+      city: "City",
+      country: "Sri Lanka",
+    };
+
+    return res.json({ success: true, data: params });
+  } catch (error: any) {
+    logger.error(`[OnboardingController] Error creating payhere params: ${error.message}`);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 export const createPaymentIntent = async (req: Request, res: Response) => {
   try {
     const { requestId } = req.body;
