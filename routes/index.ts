@@ -1,17 +1,18 @@
+import { Router } from "express";
 import { apiRateLimiter } from "@/middlewares/rateLimit.middleware";
-import { requireRoles, verifyAccessToken } from "@/middlewares/auth.middleware";
-import repairsRouter from "@/routes/repairs.routes";
-import shopsRouter from "@/routes/shops.routes";
-import staffRouter from "@/routes/staff.routes";
-import usersRouter from "@/routes/users.routes";
+import { authenticate, requireRoles, verifyAccessToken } from "@/middlewares/auth.middleware";
 import authRouter from "@/routes/auth.routes";
-import inventoryRouter from "@/routes/inventory.routes";
+import usersRouter from "@/routes/users.routes";
+import shopsRouter from "@/routes/shops.routes";
+import repairsRouter from "@/routes/repairs.routes";
+import paymentRouter from "@/routes/payment.routes";
+import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
-import { authenticate } from "@/middlewares/auth.middleware";
-import { verifyEmail } from "@/controllers/shop.controller";
-import { Router } from "express";
+import staffRouter from "@/routes/staff.routes";
+import inventoryRouter from "@/routes/inventory.routes";
 import {
+  verifyEmail,
   generateShopIds,
   registerShop,
   sendVerification as sendShopVerification,
@@ -35,12 +36,16 @@ router.post("/v1/shops/generate-ids", generateShopIds);
 router.post("/v1/shops/register", registerShop);
 router.post("/v1/shops/send-verification", sendShopVerification);
 
+// Public Payment & Subscription webhooks (must be before authenticate)
+router.use("/v1/payment", paymentRouter);
+router.use("/v1/subscription", subscriptionRouter);
+
 // Protected routes (authentication required)
 router.use(authenticate);
 router.use("/v1/users", usersRouter);
-router.use("/v1/shops", shopsRouter);       // fixed: was shopRouter in main
+router.use("/v1/shops", shopsRouter);
 router.use("/v1/repairs", repairsRouter);
-router.use("/v1/staff", staffRouter);       // from 86ew8mgtg
+router.use("/v1/staff", staffRouter);
 router.use("/v1/customers", customersRouter);
 router.use("/v1/inventory", inventoryRouter);
 
