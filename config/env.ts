@@ -46,7 +46,11 @@ export const env = {
     defaultValue: "staff-portal",
   }),
 
-  // ── Redis ────────────────────────────────────────────
+  // ── Redis ──────────────────────────────────────────────
+  REDIS_URL: getEnv("REDIS_URL", {
+    defaultValue: "",
+  }),
+
   REDIS_HOST: getEnv("REDIS_HOST", {
     defaultValue: "localhost",
   }),
@@ -56,8 +60,17 @@ export const env = {
     type: "number",
   }),
 
+  REDIS_USERNAME: getEnv("REDIS_USERNAME", {
+    defaultValue: "default",
+  }),
+
   REDIS_PASSWORD: getEnv("REDIS_PASSWORD", {
-    required: true,
+    defaultValue: "",
+  }),
+
+  /** Prepended to cache keys (e.g. `srm` → `srm:ff:tenant:<id>`). Empty = no prefix. */
+  REDIS_PREFIX: getEnv("REDIS_PREFIX", {
+    defaultValue: "",
   }),
 
   // ── Stripe ───────────────────────────────────────────

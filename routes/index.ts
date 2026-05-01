@@ -5,12 +5,13 @@ import authRouter from "@/routes/auth.routes";
 import usersRouter from "@/routes/users.routes";
 import shopsRouter from "@/routes/shops.routes";
 import repairsRouter from "@/routes/repairs.routes";
+import staffRouter from "@/routes/staff.routes";
+import inventoryRouter from "@/routes/inventory.routes";
+import settingsRouter from "@/routes/settings.routes";
 import paymentRouter from "@/routes/payment.routes";
 import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
-import staffRouter from "@/routes/staff.routes";
-import inventoryRouter from "@/routes/inventory.routes";
 import {
   verifyEmail,
   generateShopIds,
@@ -48,5 +49,6 @@ router.use("/v1/repairs", repairsRouter);
 router.use("/v1/staff", staffRouter);
 router.use("/v1/customers", customersRouter);
 router.use("/v1/inventory", inventoryRouter);
+router.use("/v1/settings", settingsRouter);
 
 export default router;

@@ -216,11 +216,12 @@ export const getTenantShopById = async (id: string, tenantId: string) => {
 
 export const createTenantShop = async (
   tenantId: string,
-  data: { name: string; address?: string; phone?: string }
+  data: { shopCode: string; name: string; address?: string; phone?: string }
 ) => {
   return prisma.shop.create({
     data: {
       tenantId,
+      shopCode: data.shopCode,
       name: data.name,
       address: data.address,
       phone: data.phone,

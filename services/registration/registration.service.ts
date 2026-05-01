@@ -91,6 +91,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
     const shop = await tx.shop.create({
       data: { 
         id: data.shop_id, 
+        shopCode: data.shop_id,
         tenantId: data.tenant_id, 
         name: data.shop_name, 
         brn: data.brn,

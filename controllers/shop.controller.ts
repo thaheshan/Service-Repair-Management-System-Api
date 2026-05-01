@@ -16,6 +16,7 @@ import {
   verifyEmailSchema,
 } from "@/validators/shop/shop.validator";
 import { logger } from "@/config/logger.config";
+import { prisma } from "@/db/prisma";
 import type { Request, Response } from "express";
 import type { AuthRequest } from "@/types/auth.types";
 
