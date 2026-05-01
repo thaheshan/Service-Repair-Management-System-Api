@@ -13,6 +13,7 @@ import paymentRouter from "@/routes/payment.routes";
 import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
+import dashboardRouter from "@/routes/dashboard.routes";
 import {
   verifyEmail,
   generateShopIds,
@@ -52,5 +53,6 @@ router.use("/v1/staff", staffRouter);
 router.use("/v1/customers", customersRouter);
 router.use("/v1/inventory", inventoryRouter);
 router.use("/v1/settings", settingsRouter);
+router.use("/v1/dashboard", dashboardRouter);
 
 export default router;
