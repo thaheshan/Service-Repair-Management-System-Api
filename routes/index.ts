@@ -14,6 +14,7 @@ import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
 import dashboardRouter from "@/routes/dashboard.routes";
+import adminRouter from "@/routes/admin.routes";
 import {
   verifyEmail,
   generateShopIds,
@@ -33,6 +34,7 @@ router.get("/health", (_req, res) => {
 router.use("/v1/auth", authRouter);
 router.get("/v1/users/verify-email", verifyEmail);
 router.use("/v1/onboarding", onboardingRouter);
+router.use("/v1/admin", adminRouter);
 
 // Public Shop Onboarding Routes
 router.post("/v1/shops/generate-ids", generateShopIds);
