@@ -72,4 +72,13 @@ export const env = {
   REDIS_PREFIX: getEnv("REDIS_PREFIX", {
     defaultValue: "",
   }),
+
+  // ── Stripe ───────────────────────────────────────────
+  STRIPE_SECRET_KEY: getEnv("STRIPE_SECRET_KEY", {
+    required: true,
+  }),
+
+  STRIPE_WEBHOOK_SECRET: getEnv("STRIPE_WEBHOOK_SECRET", {
+    required: true,
+  }),
 } as const;
