@@ -65,7 +65,7 @@ export const shopRegister = async (
 
   logger.info(`[shopRegister] -> Starting atomic transaction`);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const tenant = await tx.tenant.create({
       data: { id: tenant_id, name: shop_name },
     });
@@ -181,7 +181,7 @@ export const validateEmailToken = async (token: string): Promise<void> => {
 
   logger.info(`[validateEmailToken] -> Token valid, verifying user`);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.user.update({
       where: { id: verificationToken.userId },
       data: { isEmailVerified: true },

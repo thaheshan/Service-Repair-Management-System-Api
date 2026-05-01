@@ -44,6 +44,7 @@ if (process.env.NODE_ENV === "production") {
 
 
 app.use("/api", router);
+app.use("/v1/api", router);
 // 404 then error handler (must be last)
 app.use(notFoundMiddleware);
 
