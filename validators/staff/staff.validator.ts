@@ -15,7 +15,6 @@ export const createStaffSchema = z.object({
     .pipe(staffRoleSchema),
   phone: z.string().optional(),
 });
-
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 
 export const updateStaffSchema = z
@@ -35,7 +34,6 @@ export const updateStaffSchema = z
     message: "At least one field is required",
     path: ["body"],
   });
-
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 
 const staffRegistrationRoleSchema = z.enum(["TECHNICIAN", "MANAGER"]);

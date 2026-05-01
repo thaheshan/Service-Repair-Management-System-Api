@@ -192,9 +192,11 @@ export async function createInitialAdminUser(email: string, password: string, te
   });
 
   const passwordHash = await hashPassword(password);
+  const fallbackFullName = email.split("@")[0] || tenantName;
   const user = await prisma.user.create({
     data: {
       email,
+      fullName: fallbackFullName,
       password: passwordHash,
       role: "ADMIN",
       tenantId: tenant.id,
