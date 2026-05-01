@@ -45,6 +45,10 @@ export const env = {
   STAFF_REGISTRATION_SOURCE: getEnv("STAFF_REGISTRATION_SOURCE", {
     defaultValue: "staff-portal",
   }),
+  
+  STAFF_REGISTRATION_SECRET: getEnv("STAFF_REGISTRATION_SECRET", {
+    defaultValue: "change-me-in-production",
+  }),
 
   // ── Redis ──────────────────────────────────────────────
   REDIS_URL: getEnv("REDIS_URL", {

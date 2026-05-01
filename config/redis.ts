@@ -28,7 +28,7 @@ export function getRedis(): Redis | null {
   }
 
   redis.on("connect", () => logger.info("[redis] connected"));
-  redis.on("error", (err) => logger.warn(`[redis] error: ${String(err?.message ?? err)}`));
+  redis.on("error", (err: any) => logger.warn(`[redis] error: ${String(err?.message ?? err)}`));
 
   return redis;
 }

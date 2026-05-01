@@ -2,6 +2,7 @@ import { logger } from "@/config/logger.config";
 import type { AuthRequest } from "@/types/auth.types";
 import { countPendingRepairs, getTodayRepairs } from "@/services/dashboard/dashboard.service";
 import type { Request, Response } from "express";
+import type { DashboardAuthContext } from "@/types/dto/dashboard.dto";
 
 // GET /api/v1/dashboard/today-repairs
 export const todayRepairs = async (req: Request, res: Response) => {
@@ -11,9 +12,9 @@ export const todayRepairs = async (req: Request, res: Response) => {
       logger.warn(`[todayRepairs] -> Missing auth user`);
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    const auth = {
+    const auth: DashboardAuthContext = {
       user_id: authReq.user.id,
-      role: authReq.user.role,
+      role: authReq.user.role as DashboardAuthContext["role"],
       tenant_id: authReq.user.tenantId,
       shop_id: authReq.user.shopId || undefined,
     };
