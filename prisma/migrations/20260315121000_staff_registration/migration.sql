@@ -6,9 +6,9 @@ ADD COLUMN "acceptsStaffRegistrations" BOOLEAN NOT NULL DEFAULT true;
 
 -- Backfill shop code for existing shops before enforcing NOT NULL/UNIQUE
 WITH ranked_shops AS (
-	SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
-	FROM "Shop"
-	WHERE "shopCode" IS NULL
+  SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
+  FROM "Shop"
+  WHERE "shopCode" IS NULL
 )
 UPDATE "Shop" s
 SET "shopCode" = CONCAT('SHOP-', LPAD(ranked_shops.rn::text, 6, '0'))

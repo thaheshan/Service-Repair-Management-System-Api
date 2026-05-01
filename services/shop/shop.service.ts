@@ -74,7 +74,17 @@ export const createShopIds = async (
 export const shopRegister = async (
   data: RegisterShopRequest
 ): Promise<RegisterShopResponse> => {
-  const { shop_id, tenant_id, shop_name, brn, address, city, country, phone, branches, repairTypes, plan, owner } = data;
+  const {
+    shop_id,
+    tenant_id,
+    shop_name,
+    businessRegistration,
+    address,
+    city,
+    phone,
+    plan,
+    owner,
+  } = data;
 
   logger.info(`[shopRegister] -> Starting registration for shop: ${shop_name}`);
 
@@ -84,24 +94,22 @@ export const shopRegister = async (
 
   const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const shopCode = await generateUniqueShopCode(tx);
+
     const tenant = await tx.tenant.create({
       data: { id: tenant_id, name: shop_name },
     });
 
     const shop = await tx.shop.create({
-      data: { 
-        id: shop_id, 
-        tenantId: tenant_id, 
+      data: {
+        id: shop_id,
+        tenantId: tenant_id,
         shopCode,
-        name: shop_name, 
-        brn,
+        name: shop_name,
+        businessRegistration,
         address,
         city,
-        country,
         phone,
-        branches,
-        repairTypes: repairTypes || [],
-        plan
+        subscriptionPlan: plan as any,
       },
     });
 

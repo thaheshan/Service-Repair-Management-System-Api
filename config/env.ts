@@ -46,11 +46,11 @@ export const env = {
     defaultValue: "staff-portal",
   }),
 
-  STAFF_REGISTRATION_SECRET: getEnv("STAFF_REGISTRATION_SECRET", {
-    required: true,
+  // ── Redis ──────────────────────────────────────────────
+  REDIS_URL: getEnv("REDIS_URL", {
+    defaultValue: "",
   }),
 
-  // ── Redis ────────────────────────────────────────────
   REDIS_HOST: getEnv("REDIS_HOST", {
     defaultValue: "localhost",
   }),
@@ -60,7 +60,25 @@ export const env = {
     type: "number",
   }),
 
+  REDIS_USERNAME: getEnv("REDIS_USERNAME", {
+    defaultValue: "default",
+  }),
+
   REDIS_PASSWORD: getEnv("REDIS_PASSWORD", {
+    defaultValue: "",
+  }),
+
+  /** Prepended to cache keys (e.g. `srm` → `srm:ff:tenant:<id>`). Empty = no prefix. */
+  REDIS_PREFIX: getEnv("REDIS_PREFIX", {
+    defaultValue: "",
+  }),
+
+  // ── Stripe ───────────────────────────────────────────
+  STRIPE_SECRET_KEY: getEnv("STRIPE_SECRET_KEY", {
+    required: true,
+  }),
+
+  STRIPE_WEBHOOK_SECRET: getEnv("STRIPE_WEBHOOK_SECRET", {
     required: true,
   }),
 } as const;

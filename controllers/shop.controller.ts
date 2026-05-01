@@ -186,8 +186,6 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
   try {
     await validateEmailToken(parsed.data.token);
-    
-    // Redirect to frontend login with a success flag
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     return res.redirect(`${frontendUrl}/login?verified=true`);
   } catch (error: any) {
