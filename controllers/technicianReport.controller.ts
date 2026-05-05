@@ -1,11 +1,11 @@
 import { logger } from "@/config/logger.config";
-import type { Request, Response } from "express";
-import { getRepairReport } from "@/services/reports/repairReport.service";
+import { getTechnicianReport } from "@/services/reports/technicianReport.service";
 import { parseReportPeriod } from "@/utils/reportPeriod";
 import type { AuthRequest } from "@/types/auth.types";
+import type { Request, Response } from "express";
 
-// GET /api/v1/reports/repairs
-export async function getRepairsReport(req: Request, res: Response) {
+// GET /api/v1/reports/technician
+export async function getTechnicianReportHandler(req: Request, res: Response) {
   const authReq = req as AuthRequest;
   try {
     if (!authReq.user) {
@@ -13,12 +13,10 @@ export async function getRepairsReport(req: Request, res: Response) {
     }
 
     const period = parseReportPeriod(req.query.period);
-    const report = await getRepairReport(
+    const report = await getTechnicianReport(
       {
         tenantId: authReq.user.tenantId,
         shopId: authReq.user.shopId,
-        role: authReq.user.role,
-        userId: authReq.user.id,
       },
       period
     );
@@ -29,7 +27,7 @@ export async function getRepairsReport(req: Request, res: Response) {
     if (err.status === 400) {
       return res.status(400).json({ error: err.message ?? "Invalid request" });
     }
-    logger.error(`[getRepairsReport] ${err?.message ?? error}`);
-    return res.status(500).json({ error: "Unable to generate repair report" });
+    logger.error(`[getTechnicianReport] ${err?.message ?? error}`);
+    return res.status(500).json({ error: "Unable to generate technician report" });
   }
 }
