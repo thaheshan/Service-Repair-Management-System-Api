@@ -179,6 +179,7 @@ model Customer {
   shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   devices  Device[]
   repairs  Repair[]
+  invoices Invoice[]
   payments Payment[]
 
   @@index([tenantId])
@@ -217,6 +218,9 @@ model Repair {
   status        RepairStatus @default(NOT_STARTED)
   issue         String?
   diagnosis     String?
+  parts         Float?       @default(0)
+  laborCost     Float?       @default(0)
+  serviceCharges Float?      @default(0)
   estimatedCost Int?
   finalCost     Int?
   technicianId  String?
@@ -227,6 +231,7 @@ model Repair {
   device          Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
   technician      User?             @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  invoices        Invoice[]
   photos          Photo[]
   notifications   Notification[]
   payments        Payment[]
@@ -237,6 +242,24 @@ model Repair {
   @@index([deviceId])
   @@index([customerId])
   @@index([technicianId])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  repairId      String   @unique
+  customerId    String
+  subtotal      Float
+  taxAmount     Float
+  total         Float
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  repair   Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 model Photo {

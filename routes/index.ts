@@ -14,6 +14,7 @@ import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
 import dashboardRouter from "@/routes/dashboard.routes";
+import invoiceRouter from "@/routes/invoice.routes";
 import adminRouter from "@/routes/admin.routes";
 import {
   verifyEmail,
@@ -44,6 +45,7 @@ router.post("/v1/shops/send-verification", sendShopVerification);
 // Public Payment & Subscription webhooks (must be before authenticate)
 router.use("/v1/payment", paymentRouter);
 router.use("/v1/subscription", subscriptionRouter);
+router.use("/v1/invoices", invoiceRouter);
 
 // Protected routes (authentication required)
 router.use(authenticate);
