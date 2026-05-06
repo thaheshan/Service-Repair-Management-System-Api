@@ -197,6 +197,7 @@ model Device {
   customerId String
   brand      String
   model      String
+  type       String?
   imei       String?
   serialNo   String?
   createdAt  DateTime @default(now())
