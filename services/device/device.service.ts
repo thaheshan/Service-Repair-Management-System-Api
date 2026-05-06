@@ -5,6 +5,7 @@ type DeviceCreateInput = {
   customerId: string;
   brand: string;
   model: string;
+  type?: string;
   imei?: string;
   serialNo?: string;
 };
@@ -13,6 +14,7 @@ type DeviceUpdateInput = {
   customerId?: string;
   brand?: string;
   model?: string;
+  type?: string;
   imei?: string;
   serialNo?: string;
 };
@@ -24,6 +26,7 @@ const deviceSelect = {
   customerId: true,
   brand: true,
   model: true,
+  type: true,
   imei: true,
   serialNo: true,
   createdAt: true,
@@ -162,6 +165,7 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
         customerId: data.customerId,
         brand: data.brand,
         model: data.model,
+        type: data.type,
         imei: data.imei,
         serialNo: data.serialNo,
       },
