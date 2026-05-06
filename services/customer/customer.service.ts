@@ -63,6 +63,15 @@ export const getCustomers = async (tenantId: string, shopId: string) => {
       name: true,
       phone: true,
       email: true,
+      address: true,
+      createdAt: true,
+      repairs: {
+        select: {
+          finalCost: true,
+          estimatedCost: true,
+          createdAt: true,
+        }
+      }
     },
     orderBy: { createdAt: "desc" },
   });

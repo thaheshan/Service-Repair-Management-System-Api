@@ -17,7 +17,7 @@ router.post("/register", registerStaff);
 router.post("/validate-shop-id", validateShopId);
 
 // Protected staff context + management
-router.get("/me", authenticate, authorizeRoles("TECHNICIAN", "MANAGER"), getStaffDashboardContext);
+router.get("/me", authenticate, authorizeRoles("ADMIN", "TECHNICIAN", "MANAGER"), getStaffDashboardContext);
 router.get("/", authenticate, authorizeRoles("ADMIN", "MANAGER"), getStaffList);
 router.post("/", authenticate, authorizeRoles("ADMIN"), addStaff);
 router.put("/:staffId", authenticate, authorizeRoles("ADMIN"), updateStaff);

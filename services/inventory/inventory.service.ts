@@ -160,6 +160,32 @@ export const getLowStockItems = async (tenantId: string, shopId: string) => {
   return lowStockItems;
 };
 
+export const getInventorySummary = async (tenantId: string, shopId: string) => {
+  logger.info(`[getInventorySummary] -> Fetching inventory summary for shop: ${shopId}`);
+
+  const items = await prisma.partsInventory.findMany({
+    where: { tenantId, shopId, isActive: true },
+    select: {
+      quantityInStock: true,
+      minimumStockLevel: true,
+      unitCost: true,
+    },
+  });
+
+  const totalItems = items.length;
+  const lowStockCount = items.filter(i => i.quantityInStock <= i.minimumStockLevel && i.quantityInStock > 0).length;
+  const outOfStockCount = items.filter(i => i.quantityInStock === 0).length;
+  const totalValue = items.reduce((sum, i) => sum + (i.quantityInStock * i.unitCost), 0);
+
+  return {
+    totalItems,
+    lowStockCount,
+    outOfStockCount,
+    totalValue,
+    pendingPOs: 5, // Mocked for now
+  };
+};
+
 export const getInventoryUsage = async (tenantId: string, shopId: string) => {
   logger.info(`[getInventoryUsage] -> Fetching usage report for shop: ${shopId}`);
 

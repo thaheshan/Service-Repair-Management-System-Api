@@ -6,6 +6,7 @@ import {
   removeInventoryItem,
   lowStock,
   usage,
+  summary,
 } from "@/controllers/inventory.controller";
 import { authorizeRoles } from "@/middlewares/auth.middleware";
 import { Router } from "express";
@@ -15,6 +16,7 @@ const router = Router();
 // Special routes first (before /:itemId)
 router.get("/low-stock", authorizeRoles("ADMIN", "MANAGER", "TECHNICIAN"), lowStock);
 router.get("/usage", authorizeRoles("ADMIN", "MANAGER", "TECHNICIAN"), usage);
+router.get("/summary", authorizeRoles("ADMIN", "MANAGER", "TECHNICIAN"), summary);
 
 // CRUD routes
 router.get("/", authorizeRoles("ADMIN", "MANAGER", "TECHNICIAN"), listInventoryItems);
