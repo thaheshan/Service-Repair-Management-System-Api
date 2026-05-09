@@ -1,5 +1,5 @@
 import { prisma } from "@/db/prisma";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { UpdateSettingsInput } from "@/validators/settings/settings.validator";
 
 export type ShopSettingsResponse = {
@@ -34,9 +34,13 @@ export const getShopSettings = async (
     settings: {
       currency: shop.settings?.currency ?? "LKR",
       timezone: shop.settings?.timezone ?? "(GMT +05:30) Colombo, Sri Lanka",
+      language: shop.settings?.language ?? "en",
       taxPercentage: Number(shop.settings?.taxRate ?? 0),
       notificationPreferences: shop.settings?.notificationPreferences ?? {},
+      appearance: shop.settings?.appearance ?? {},
+      securityRules: shop.settings?.securityRules ?? {},
     },
+    logoUrl: shop.logoUrl,
   };
 };
 
@@ -55,11 +59,12 @@ export const updateShopSettings = async (
   if (data.email !== undefined) shopUpdatePayload.email = data.email;
   if (data.website !== undefined) shopUpdatePayload.website = data.website;
   if (data.taxNumber !== undefined) shopUpdatePayload.taxNumber = data.taxNumber;
+  if (data.logoUrl !== undefined) shopUpdatePayload.logoUrl = data.logoUrl;
 
   // Settings Fields
   if (data.currency !== undefined) settingsUpdatePayload.currency = data.currency.trim().toUpperCase();
   if (data.timezone !== undefined) settingsUpdatePayload.timezone = data.timezone;
-  if (data.taxPercentage !== undefined) settingsUpdatePayload.taxRate = data.taxPercentage;
+  if (data.taxPercentage !== undefined) settingsUpdatePayload.taxRate = new Prisma.Decimal(data.taxPercentage);
   if (data.notificationPreferences !== undefined) {
     settingsUpdatePayload.notificationPreferences = data.notificationPreferences;
   }
@@ -70,6 +75,9 @@ export const updateShopSettings = async (
       enabled: data.notificationsEnabled 
     };
   }
+  if (data.appearance !== undefined) settingsUpdatePayload.appearance = data.appearance;
+  if (data.securityRules !== undefined) settingsUpdatePayload.securityRules = data.securityRules;
+  if (data.language !== undefined) settingsUpdatePayload.language = data.language;
 
   const existing = await prisma.shop.findFirst({
     where: { id: shopId, tenantId },
