@@ -120,6 +120,8 @@ model User {
   role            UserRole @default(TECHNICIAN)
   isActive        Boolean  @default(true)
   isEmailVerified Boolean  @default(false)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -437,7 +439,10 @@ model ShopSettings {
   taxRate                 Decimal  @default(0.00) @db.Decimal(5, 2)
   currency                String   @default("LKR")
   timezone                String?
+  language                String?  @default("en")
   dateFormat              String?
+  appearance              Json?
+  securityRules           Json?
   featureFlags            Json?
   updatedAt               DateTime @updatedAt
 
