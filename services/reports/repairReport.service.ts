@@ -15,34 +15,37 @@ const repairReportInclude = {
 
 type RepairReportRow = Prisma.RepairGetPayload<{ include: typeof repairReportInclude }>;
 
+/** Display labels for `Repair.status`. */
+const REPAIR_STATUS_LABELS: Record<string, string> = {
+  NOT_STARTED: "Pending",
+  IN_PROGRESS: "In Progress",
+  READY_TO_TAKE: "Ready",
+  DELIVERED: "Completed",
+  PAID: "Paid",
+};
+
 export function repairStatusDisplay(status: RepairReportRow["status"]): string {
-  switch (status) {
-    case "NOT_STARTED":
-      return "Pending";
-    case "IN_PROGRESS":
-      return "In Progress";
-    case "READY_TO_TAKE":
-      return "Ready";
-    case "DELIVERED":
-      return "Completed";
-    default:
-      return status;
-  }
+  const key = status as string;
+  return REPAIR_STATUS_LABELS[key] ?? key;
 }
 
+/** Display labels for `Repair.priority` (`Priority` enum in schema). */
+const PRIORITY_LABELS: Record<string, string> = {
+  URGENT: "Urgent",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
+
 export function repairPriorityDisplay(priority: RepairReportRow["priority"]): string {
-  switch (priority) {
-    case "LOW":
-      return "Low";
-    case "MEDIUM":
-      return "Medium";
-    case "HIGH":
-      return "High";
-    case "URGENT":
-      return "Urgent";
-    default:
-      return priority;
-  }
+  const key = priority as string;
+  return PRIORITY_LABELS[key] ?? key;
+}
+
+const COMPLETED_REPAIR_STATUS = new Set<string>(["DELIVERED", "PAID"]);
+
+function isCompletedRepairStatus(status: RepairReportRow["status"]): boolean {
+  return COMPLETED_REPAIR_STATUS.has(status as string);
 }
 
 function formatReportDueDate(d: Date | null | undefined): string {
@@ -132,7 +135,7 @@ export async function getRepairReport(
   });
 
   const totalRepairs = rows.length;
-  const completedRepairs = rows.filter((r) => r.status === "DELIVERED").length;
+  const completedRepairs = rows.filter((r) => isCompletedRepairStatus(r.status)).length;
   const pendingRepairs = totalRepairs - completedRepairs;
   const repairs = rows.map(mapRepairRow);
 
