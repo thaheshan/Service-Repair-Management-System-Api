@@ -16,7 +16,10 @@ export const getTenantRepairById = async (id: string, tenantId: string) => {
       customer: true, 
       device: true, 
       technician: { select: { id: true, email: true, fullName: true, role: true } }, 
+      notes: { include: { user: { select: { id: true, fullName: true } } }, orderBy: { createdAt: 'desc' } },
+      timeline: { orderBy: { createdAt: 'desc' } }
     },
+
   });
 
   if (!repair) {

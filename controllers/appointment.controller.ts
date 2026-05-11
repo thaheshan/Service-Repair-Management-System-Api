@@ -20,7 +20,7 @@ export const listAppointments = async (req: AuthRequest, res: Response) => {
 
 export const addAppointment = async (req: AuthRequest, res: Response) => {
   try {
-    const { shopId, customerId, technicianId, repairId, scheduledAt, duration, notes } = req.body;
+    const { shopId, customerId, technicianId, repairId, scheduledAt, duration, notes, type } = req.body;
     if (!shopId || !scheduledAt) {
       return res.status(400).json({ success: false, message: "shopId and scheduledAt are required" });
     }
@@ -32,7 +32,9 @@ export const addAppointment = async (req: AuthRequest, res: Response) => {
       scheduledAt: new Date(scheduledAt),
       duration: duration ? Number(duration) : undefined,
       notes,
+      type
     });
+
     return res.status(201).json({ success: true, data: appointment });
   } catch (error: any) {
     logger.error(`[addAppointment] -> ${error.message}`);

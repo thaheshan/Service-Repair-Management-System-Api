@@ -1,5 +1,8 @@
 import { prisma } from "@/db/prisma";
 import { logger } from "@/config/logger.config";
+import { sendSms } from "../notification/notification.service";
+// import { format } from "date-fns"; // Removed to avoid dependency issue
+
 
 export const getAppointments = async (tenantId: string, shopId?: string) => {
   logger.info(`[getAppointments] -> Fetching appointments for tenant: ${tenantId}`);
@@ -40,6 +43,7 @@ export const createAppointment = async (
     scheduledAt: Date;
     duration?: number;
     notes?: string;
+    type?: string; // "Call" or "Meeting"
   }
 ) => {
   logger.info(`[createAppointment] -> Creating appointment for tenant: ${tenantId}`);
@@ -55,7 +59,27 @@ export const createAppointment = async (
       duration: data.duration ?? 60,
       notes: data.notes ?? null,
     },
+    include: {
+      customer: { select: { name: true, phone: true } }
+    }
   });
+
+  // Send SMS notification if customer exists and has phone
+  if (appointment.customer?.phone) {
+    const formattedDate = new Intl.DateTimeFormat('en-US', {
+      month: 'short', day: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    }).format(new Date(data.scheduledAt));
+
+    const msg = `Hi ${appointment.customer.name}, your ${data.type || 'Appointment'} has been scheduled for ${formattedDate}. Notes: ${data.notes || 'N/A'}. Thank you!`;
+
+    
+    try {
+      await sendSms(appointment.customer.phone, msg);
+    } catch (err) {
+      logger.error(`[createAppointment] -> SMS delivery failed but appointment created: ${err}`);
+    }
+  }
 
   return appointment;
 };

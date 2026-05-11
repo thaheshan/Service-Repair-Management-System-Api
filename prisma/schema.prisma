@@ -135,10 +135,12 @@ model User {
   repairPartsUsed         RepairPartsUsed[]
   appointments            Appointment[] @relation("TechnicianAppointments")
   repairNotes             RepairNote[]
+  customerNotes           CustomerNote[]
 
   @@index([tenantId])
   @@index([shopId])
 }
+
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
@@ -172,25 +174,45 @@ model RefreshToken {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  tenantId  String
-  shopId    String
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  tenantId      String
+  shopId        String
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  loyaltyPoints Int      @default(0)
+  tier          String   @default("Bronze")
+  tags          String[] @default([])
+  preferences   Json?    @default("{\"preferredContact\": \"Phone\", \"notifications\": {\"email\": true, \"sms\": true, \"push\": true}, \"language\": \"English\"}")
 
-  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  devices  Device[]
-  repairs  Repair[]
-  payments Payment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop         Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  devices      Device[]
+  repairs      Repair[]
+  payments     Payment[]
   appointments Appointment[]
+  notes        CustomerNote[]
 
   @@index([tenantId])
   @@index([shopId])
 }
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  text       String
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+}
+
 
 model Device {
   id         String   @id @default(cuid())
