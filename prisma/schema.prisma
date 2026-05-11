@@ -22,6 +22,13 @@ enum RepairStatus {
   DELIVERED
 }
 
+enum RepairPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum SubscriptionPlan {
   SINGLE
   SMALL
@@ -208,20 +215,22 @@ model Device {
 }
 
 model Repair {
-  id            String       @id @default(cuid())
-  tenantId      String
-  shopId        String
-  customerId    String
-  deviceId      String
-  reference     String       @unique
-  status        RepairStatus @default(NOT_STARTED)
-  issue         String?
-  diagnosis     String?
-  estimatedCost Int?
-  finalCost     Int?
-  technicianId  String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                      String          @id @default(cuid())
+  tenantId                String
+  shopId                  String
+  customerId              String
+  deviceId                String
+  reference               String          @unique
+  status                  RepairStatus    @default(NOT_STARTED)
+  priority                RepairPriority  @default(MEDIUM)
+  issue                   String?
+  diagnosis               String?
+  estimatedCost           Int?
+  finalCost               Int?
+  estimatedCompletionDate DateTime?
+  technicianId            String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
   customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   device          Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)

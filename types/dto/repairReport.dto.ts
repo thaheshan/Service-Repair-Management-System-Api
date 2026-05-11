@@ -24,7 +24,6 @@ export interface RepairReportItem {
   technician: string;
   /** `finalCost` if set, otherwise `estimatedCost` (same integer units as stored on Repair). */
   amount: number | null;
-  /** Display SLA label; placeholder until modeled in DB */
   dueDate: string;
 }
 

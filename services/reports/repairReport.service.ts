@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/db/prisma";
 import type {
   RepairReportItem,
@@ -6,13 +7,15 @@ import type {
   RepairReportScope,
 } from "@/types/dto/repairReport.dto";
 
-/** Mirrors `RepairStatus` in prisma/schema.prisma */
-type RepairStatusValue = "NOT_STARTED" | "IN_PROGRESS" | "READY_TO_TAKE" | "DELIVERED";
+const repairReportInclude = {
+  customer: { select: { name: true, phone: true } },
+  device: { select: { brand: true, model: true } },
+  technician: { select: { fullName: true, name: true } },
+} as const satisfies Prisma.RepairInclude;
 
-const DEFAULT_PRIORITY_LABEL = "Medium";
-const DEFAULT_DUE_LABEL = "Standard";
+type RepairReportRow = Prisma.RepairGetPayload<{ include: typeof repairReportInclude }>;
 
-export function repairStatusDisplay(status: RepairStatusValue): string {
+export function repairStatusDisplay(status: RepairReportRow["status"]): string {
   switch (status) {
     case "NOT_STARTED":
       return "Pending";
@@ -27,6 +30,26 @@ export function repairStatusDisplay(status: RepairStatusValue): string {
   }
 }
 
+export function repairPriorityDisplay(priority: RepairReportRow["priority"]): string {
+  switch (priority) {
+    case "LOW":
+      return "Low";
+    case "MEDIUM":
+      return "Medium";
+    case "HIGH":
+      return "High";
+    case "URGENT":
+      return "Urgent";
+    default:
+      return priority;
+  }
+}
+
+function formatReportDueDate(d: Date | null | undefined): string {
+  if (!d) return "";
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
 function formatDeviceLabel(brand: string, model: string): string {
   const b = brand?.trim() ?? "";
   const m = model?.trim() ?? "";
@@ -34,16 +57,7 @@ function formatDeviceLabel(brand: string, model: string): string {
   return `${b} ${m}`.trim();
 }
 
-function mapRepairRow(r: {
-  reference: string;
-  status: RepairStatusValue;
-  issue: string | null;
-  estimatedCost: number | null;
-  finalCost: number | null;
-  customer: { name: string; phone: string | null };
-  device: { brand: string; model: string };
-  technician: { fullName: string; name: string | null } | null;
-}): RepairReportItem {
+function mapRepairRow(r: RepairReportRow): RepairReportItem {
   const tech = r.technician;
   const technicianName =
     tech?.fullName?.trim() || tech?.name?.trim() || "Unassigned";
@@ -55,10 +69,10 @@ function mapRepairRow(r: {
     device: formatDeviceLabel(r.device.brand, r.device.model),
     issue: r.issue?.trim() ?? "",
     status: repairStatusDisplay(r.status),
-    priority: DEFAULT_PRIORITY_LABEL,
+    priority: repairPriorityDisplay(r.priority),
     technician: technicianName,
     amount: r.finalCost ?? r.estimatedCost ?? null,
-    dueDate: DEFAULT_DUE_LABEL,
+    dueDate: formatReportDueDate(r.estimatedCompletionDate),
   };
 }
 
@@ -113,11 +127,7 @@ export async function getRepairReport(
 
   const rows = await prisma.repair.findMany({
     where,
-    include: {
-      customer: { select: { name: true, phone: true } },
-      device: { select: { brand: true, model: true } },
-      technician: { select: { fullName: true, name: true } },
-    },
+    include: repairReportInclude,
     orderBy: { createdAt: "desc" },
   });
 
