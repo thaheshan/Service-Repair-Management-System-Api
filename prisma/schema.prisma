@@ -15,6 +15,11 @@ enum UserRole {
   CUSTOMER
 }
 
+enum CustomerType {
+  INDIVIDUAL
+  BUSINESS
+}
+
 enum RepairStatus {
   NOT_STARTED
   IN_PROGRESS
@@ -183,14 +188,15 @@ model RefreshToken {
 }
 
 model Customer {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   tenantId      String
   shopId        String
   name          String
   phone         String?
   email         String?
   address       String?
-  loyaltyPoints Int      @default(0)
+  customerType  CustomerType @default(INDIVIDUAL)
+  loyaltyPoints Int          @default(0)
   tier          String   @default("Bronze")
   tags          String[] @default([])
   preferences   Json?    @default("{\"preferredContact\": \"Phone\", \"notifications\": {\"email\": true, \"sms\": true, \"push\": true}, \"language\": \"English\"}")

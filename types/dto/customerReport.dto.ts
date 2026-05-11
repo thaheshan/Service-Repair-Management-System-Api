@@ -4,12 +4,7 @@ export interface CustomerReportRow {
   phone: string | null;
   /** Customer address; clients may show N/A when null */
   location: string | null;
-  /**
-   * Segment label (no dedicated DB field).
-   * "New" = profile created within the last N days of the report window end;
-   * "VIP" = otherwise, high activity in the report period;
-   * "Regular" = default.
-   */
+  /** From `Customer.customerType`: Individual / Business */
   type: string;
   repairs: number;
   /** Total completed payment amount in the report period (numeric; format "Rs. …" on the client). */

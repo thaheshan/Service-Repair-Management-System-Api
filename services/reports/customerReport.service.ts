@@ -7,37 +7,21 @@ import type {
 import type { RepairReportPeriod } from "@/types/dto/repairReport.dto";
 import { getPeriodDateRange } from "@/services/reports/repairReport.service";
 
-/** Days from report window end used to label a customer as "New". */
-const NEW_CUSTOMER_LOOKBACK_DAYS = 30;
-/** In-period activity thresholds for "VIP" (after New rule). */
-const VIP_MIN_REPAIRS_IN_PERIOD = 3;
-const VIP_MIN_SPENT_IN_PERIOD = 50_000;
+/** Display labels for `Customer.customerType` (`CustomerType` enum). */
+const CUSTOMER_TYPE_LABELS: Record<string, string> = {
+  INDIVIDUAL: "Individual",
+  BUSINESS: "Business",
+};
+
+function customerTypeDisplay(customerType: string): string {
+  return CUSTOMER_TYPE_LABELS[customerType] ?? customerType;
+}
 
 function moneyToNumber(value: { toString(): string } | null | undefined): number {
   if (value == null) return 0;
   const n = Number(value.toString());
   if (Number.isNaN(n)) return 0;
   return Math.round(n * 100) / 100;
-}
-
-function newCustomerCutoff(reportEnd: Date): Date {
-  const d = new Date(reportEnd);
-  d.setDate(d.getDate() - NEW_CUSTOMER_LOOKBACK_DAYS);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function classifyCustomerType(
-  createdAt: Date,
-  repairsInPeriod: number,
-  totalSpentInPeriod: number,
-  reportEnd: Date
-): string {
-  if (createdAt >= newCustomerCutoff(reportEnd)) return "New";
-  if (repairsInPeriod >= VIP_MIN_REPAIRS_IN_PERIOD || totalSpentInPeriod >= VIP_MIN_SPENT_IN_PERIOD) {
-    return "VIP";
-  }
-  return "Regular";
 }
 
 function customerWhere(scope: CustomerReportScope) {
@@ -80,7 +64,7 @@ export async function getCustomerReport(
         email: true,
         phone: true,
         address: true,
-        createdAt: true,
+        customerType: true,
       },
       orderBy: { name: "asc" },
     }),
@@ -117,7 +101,7 @@ export async function getCustomerReport(
       email: c.email,
       phone: c.phone,
       location: address.length > 0 ? address : null,
-      type: classifyCustomerType(c.createdAt, repairs, totalSpent, end),
+      type: customerTypeDisplay(c.customerType),
       repairs,
       totalSpent,
     };
