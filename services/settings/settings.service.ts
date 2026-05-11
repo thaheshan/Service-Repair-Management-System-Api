@@ -38,7 +38,9 @@ export const getShopSettings = async (
       taxPercentage: Number(shop.settings?.taxRate ?? 0),
       notificationPreferences: shop.settings?.notificationPreferences ?? {},
       appearance: shop.settings?.appearance ?? {},
+      customerTiers: (shop.settings?.appearance as any)?.customerTiers ?? [],
       securityRules: shop.settings?.securityRules ?? {},
+
     },
     logoUrl: shop.logoUrl,
   };
@@ -75,17 +77,35 @@ export const updateShopSettings = async (
       enabled: data.notificationsEnabled 
     };
   }
-  if (data.appearance !== undefined) settingsUpdatePayload.appearance = data.appearance;
   if (data.securityRules !== undefined) settingsUpdatePayload.securityRules = data.securityRules;
   if (data.language !== undefined) settingsUpdatePayload.language = data.language;
 
-  const existing = await prisma.shop.findFirst({
+  
+  const existingShop = await prisma.shop.findFirst({
     where: { id: shopId, tenantId },
-    select: { id: true },
+    include: { settings: true },
   });
-  if (!existing) {
+
+  if (!existingShop) {
     throw { status: 404, code: "NOT_FOUND" };
   }
+
+  // Merge customerTiers into appearance if provided
+  if (data.customerTiers !== undefined) {
+    const currentAppearance = (existingShop.settings?.appearance as any) || {};
+    settingsUpdatePayload.appearance = {
+      ...currentAppearance,
+      customerTiers: data.customerTiers
+    };
+  } else if (data.appearance !== undefined) {
+    // If appearance is provided directly, merge with existing tiers to preserve them
+    const currentTiers = (existingShop.settings?.appearance as any)?.customerTiers || [];
+    settingsUpdatePayload.appearance = {
+      ...data.appearance,
+      customerTiers: currentTiers
+    };
+  }
+
 
   try {
     const transactions: any[] = [];

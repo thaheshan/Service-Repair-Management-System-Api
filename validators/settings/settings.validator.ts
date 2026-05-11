@@ -16,7 +16,9 @@ export const updateSettingsSchema = z
     appearance: z.record(z.string(), z.any()).optional(),
     securityRules: z.record(z.string(), z.any()).optional(),
     language: z.string().optional(),
+    customerTiers: z.array(z.any()).optional(),
     logoUrl: z.string().url().optional().or(z.literal("")),
+
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
