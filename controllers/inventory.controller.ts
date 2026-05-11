@@ -6,6 +6,7 @@ import {
   deleteInventoryItem,
   getLowStockItems,
   getInventoryUsage,
+  getInventorySummary,
 } from "@/services/inventory/inventory.service";
 import {
   createInventoryItemSchema,
@@ -113,5 +114,17 @@ export const usage = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error(`[usage] -> ${error.message}`);
     return res.status(error.status ?? 500).json({ error: "Unable to generate inventory usage report" });
+  }
+};
+
+// GET /api/v1/inventory/summary
+export const summary = async (req: Request, res: Response) => {
+  try {
+    const auth = (req as AuthRequest).user!;
+    const inventorySummary = await getInventorySummary(auth.tenantId, auth.shopId!);
+    return res.status(200).json({ summary: inventorySummary });
+  } catch (error: any) {
+    logger.error(`[summary] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({ error: "Unable to generate inventory summary" });
   }
 };

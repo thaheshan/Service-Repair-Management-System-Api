@@ -1,5 +1,5 @@
 import { prisma } from "@/db/prisma";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { UpdateSettingsInput } from "@/validators/settings/settings.validator";
 
 export type ShopSettingsResponse = {
@@ -12,7 +12,7 @@ export type ShopSettingsResponse = {
 export const getShopSettings = async (
   tenantId: string,
   shopId: string,
-): Promise<ShopSettingsResponse> => {
+) => {
   const shop = await prisma.shop.findFirst({
     where: { id: shopId, tenantId },
     include: { settings: true },
@@ -23,10 +23,26 @@ export const getShopSettings = async (
   }
 
   return {
-    shopName: shop.name,
-    currency: shop.settings?.currency ?? "LKR",
-    taxPercentage: Number(shop.settings?.taxRate ?? 0),
-    notificationsEnabled: !!shop.settings?.notificationPreferences,
+    shop: {
+      name: shop.name,
+      address: shop.address,
+      phone: shop.phone,
+      email: shop.email,
+      website: shop.website,
+      taxNumber: shop.taxNumber,
+    },
+    settings: {
+      currency: shop.settings?.currency ?? "LKR",
+      timezone: shop.settings?.timezone ?? "(GMT +05:30) Colombo, Sri Lanka",
+      language: shop.settings?.language ?? "en",
+      taxPercentage: Number(shop.settings?.taxRate ?? 0),
+      notificationPreferences: shop.settings?.notificationPreferences ?? {},
+      appearance: shop.settings?.appearance ?? {},
+      customerTiers: (shop.settings?.appearance as any)?.customerTiers ?? [],
+      securityRules: shop.settings?.securityRules ?? {},
+
+    },
+    logoUrl: shop.logoUrl,
   };
 };
 
@@ -38,37 +54,83 @@ export const updateShopSettings = async (
   const shopUpdatePayload: Prisma.ShopUpdateInput = {};
   const settingsUpdatePayload: any = {};
 
+  // Shop Profile Fields
   if (data.shopName !== undefined) shopUpdatePayload.name = data.shopName;
-  if (data.currency !== undefined) settingsUpdatePayload.currency = data.currency.trim().toUpperCase();
-  if (data.taxPercentage !== undefined) settingsUpdatePayload.taxRate = data.taxPercentage;
-  // Note: notificationPreferences is Json, we'll just set a simple enabled flag for now if needed
-  if (data.notificationsEnabled !== undefined) {
-    settingsUpdatePayload.notificationPreferences = { enabled: data.notificationsEnabled };
-  }
+  if (data.address !== undefined) shopUpdatePayload.address = data.address;
+  if (data.phone !== undefined) shopUpdatePayload.phone = data.phone;
+  if (data.email !== undefined) shopUpdatePayload.email = data.email;
+  if (data.website !== undefined) shopUpdatePayload.website = data.website;
+  if (data.taxNumber !== undefined) shopUpdatePayload.taxNumber = data.taxNumber;
+  if (data.logoUrl !== undefined) shopUpdatePayload.logoUrl = data.logoUrl;
 
-  const existing = await prisma.shop.findFirst({
+  // Settings Fields
+  if (data.currency !== undefined) settingsUpdatePayload.currency = data.currency.trim().toUpperCase();
+  if (data.timezone !== undefined) settingsUpdatePayload.timezone = data.timezone;
+  if (data.taxPercentage !== undefined) settingsUpdatePayload.taxRate = new Prisma.Decimal(data.taxPercentage);
+  if (data.notificationPreferences !== undefined) {
+    settingsUpdatePayload.notificationPreferences = data.notificationPreferences;
+  }
+  if (data.notificationsEnabled !== undefined) {
+    // If just toggling enabled, merge with existing if possible or set a flag
+    settingsUpdatePayload.notificationPreferences = { 
+      ...(settingsUpdatePayload.notificationPreferences || {}),
+      enabled: data.notificationsEnabled 
+    };
+  }
+  if (data.securityRules !== undefined) settingsUpdatePayload.securityRules = data.securityRules;
+  if (data.language !== undefined) settingsUpdatePayload.language = data.language;
+
+  
+  const existingShop = await prisma.shop.findFirst({
     where: { id: shopId, tenantId },
-    select: { id: true },
+    include: { settings: true },
   });
-  if (!existing) {
+
+  if (!existingShop) {
     throw { status: 404, code: "NOT_FOUND" };
   }
 
+  // Merge customerTiers into appearance if provided
+  if (data.customerTiers !== undefined) {
+    const currentAppearance = (existingShop.settings?.appearance as any) || {};
+    settingsUpdatePayload.appearance = {
+      ...currentAppearance,
+      customerTiers: data.customerTiers
+    };
+  } else if (data.appearance !== undefined) {
+    // If appearance is provided directly, merge with existing tiers to preserve them
+    const currentTiers = (existingShop.settings?.appearance as any)?.customerTiers || [];
+    settingsUpdatePayload.appearance = {
+      ...data.appearance,
+      customerTiers: currentTiers
+    };
+  }
+
+
   try {
-    await prisma.$transaction([
-      prisma.shop.update({
+    const transactions: any[] = [];
+    
+    if (Object.keys(shopUpdatePayload).length > 0) {
+      transactions.push(prisma.shop.update({
         where: { id: shopId },
         data: shopUpdatePayload,
-      }),
-      prisma.shopSettings.upsert({
-        where: { tenantId: shopId }, // Note: schema uses tenantId as the FK/PK for settings
+      }));
+    }
+
+    if (Object.keys(settingsUpdatePayload).length > 0) {
+      transactions.push(prisma.shopSettings.upsert({
+        where: { tenantId: shopId },
         create: {
           tenantId: shopId,
           ...settingsUpdatePayload,
         },
         update: settingsUpdatePayload,
-      }),
-    ]);
+      }));
+    }
+
+    if (transactions.length > 0) {
+      await prisma.$transaction(transactions);
+    }
   } catch (error: any) {
     if (error.code === "P2025") {
       throw { status: 404, code: "NOT_FOUND" };

@@ -20,13 +20,7 @@ enum RepairStatus {
   IN_PROGRESS
   READY_TO_TAKE
   DELIVERED
-}
-
-enum RepairPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
+  PAID
 }
 
 enum SubscriptionPlan {
@@ -60,6 +54,15 @@ enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum DeviceStatus {
+  ACTIVE
+  AVAILABLE
+  ON_SALE
+  SOLD
+  IN_SERVICE
+  COLLECTED
 }
 
 model Tenant {
@@ -108,6 +111,7 @@ model Shop {
   payments       Payment[]
   partsInventory PartsInventory[]
   settings       ShopSettings?
+  appointments   Appointment[]
 
   @@index([tenantId])
 }
@@ -125,6 +129,8 @@ model User {
   role            UserRole @default(TECHNICIAN)
   isActive        Boolean  @default(true)
   isEmailVerified Boolean  @default(false)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -136,10 +142,14 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   emailLogs               EmailLog[]
   repairPartsUsed         RepairPartsUsed[]
+  appointments            Appointment[] @relation("TechnicianAppointments")
+  repairNotes             RepairNote[]
+  customerNotes           CustomerNote[]
 
   @@index([tenantId])
   @@index([shopId])
 }
+
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
@@ -173,24 +183,45 @@ model RefreshToken {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  tenantId  String
-  shopId    String
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  tenantId      String
+  shopId        String
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  loyaltyPoints Int      @default(0)
+  tier          String   @default("Bronze")
+  tags          String[] @default([])
+  preferences   Json?    @default("{\"preferredContact\": \"Phone\", \"notifications\": {\"email\": true, \"sms\": true, \"push\": true}, \"language\": \"English\"}")
 
-  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  devices  Device[]
-  repairs  Repair[]
-  payments Payment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop         Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  devices      Device[]
+  repairs      Repair[]
+  payments     Payment[]
+  appointments Appointment[]
+  notes        CustomerNote[]
 
   @@index([tenantId])
   @@index([shopId])
 }
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  text       String
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+}
+
 
 model Device {
   id         String   @id @default(cuid())
@@ -199,8 +230,11 @@ model Device {
   customerId String
   brand      String
   model      String
+  type       String?
   imei       String?
   serialNo   String?
+  price      Int?
+  status     DeviceStatus @default(ACTIVE)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -215,22 +249,22 @@ model Device {
 }
 
 model Repair {
-  id                      String          @id @default(cuid())
+  id                      String       @id @default(cuid())
   tenantId                String
   shopId                  String
   customerId              String
   deviceId                String
-  reference               String          @unique
-  status                  RepairStatus    @default(NOT_STARTED)
-  priority                RepairPriority  @default(MEDIUM)
+  reference               String       @unique
+  status                  RepairStatus @default(NOT_STARTED)
   issue                   String?
   diagnosis               String?
   estimatedCost           Int?
   finalCost               Int?
-  estimatedCompletionDate DateTime?
   technicianId            String?
-  createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
+  priority                Priority     @default(MEDIUM)
+  estimatedCompletionDate DateTime?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   device          Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -240,12 +274,48 @@ model Repair {
   notifications   Notification[]
   payments        Payment[]
   repairPartsUsed RepairPartsUsed[]
+  appointment     Appointment?
+  notes           RepairNote[]
+  timeline        RepairTimelineEvent[]
 
   @@index([tenantId])
   @@index([shopId])
   @@index([deviceId])
   @@index([customerId])
   @@index([technicianId])
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model RepairNote {
+  id        String   @id @default(cuid())
+  repairId  String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([repairId])
+}
+
+model RepairTimelineEvent {
+  id          String   @id @default(cuid())
+  repairId    String
+  type        String   // CREATED, STATUS_CHANGE, NOTE_ADDED, etc.
+  description String
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([repairId])
 }
 
 model Photo {
@@ -263,20 +333,29 @@ model Photo {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  tenantId  String
-  repairId  String?
-  channel   String
-  to        String
-  message   String
-  status    String    @default("PENDING")
-  createdAt DateTime  @default(now())
-  sentAt    DateTime?
+  id          String    @id @default(cuid())
+  tenantId    String
+  shopId      String?   // Added for shop-specific in-app alerts
+  repairId    String?
+  channel     String    @default("IN_APP") // Default to in-app
+  to          String?   // Optional for in-app
+  title       String?   // For in-app alerts
+  message     String
+  type        String?   // REPAIR, INVENTORY, etc.
+  isRead      Boolean   @default(false)
+  isCleared   Boolean   @default(false)
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
+  sentAt      DateTime?
 
   repair Repair? @relation(fields: [repairId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([shopId])
   @@index([repairId])
+  @@index([isRead])
+  @@index([isCleared])
 }
 
 model EmailVerificationToken {
@@ -312,6 +391,7 @@ model EmailLog {
 model Payment {
   id                   String        @id @default(uuid())
   tenantId             String
+  shopId               String
   repairId             String?
   customerId           String?
   paymentMethod        PaymentMethod
@@ -325,11 +405,12 @@ model Payment {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  shop     Shop      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repair   Repair?   @relation(fields: [repairId], references: [id], onDelete: SetNull)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([shopId])
   @@index([repairId])
   @@index([customerId])
   @@index([paymentDate])
@@ -391,7 +472,10 @@ model ShopSettings {
   taxRate                 Decimal  @default(0.00) @db.Decimal(5, 2)
   currency                String   @default("LKR")
   timezone                String?
+  language                String?  @default("en")
   dateFormat              String?
+  appearance              Json?
+  securityRules           Json?
   featureFlags            Json?
   updatedAt               DateTime @updatedAt
 
@@ -425,4 +509,28 @@ model AuditLog {
 
   @@index([tenantId])
   @@index([adminId])
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  tenantId     String
+  shopId       String
+  customerId   String?
+  technicianId String?
+  repairId     String?  @unique
+  scheduledAt  DateTime
+  duration     Int      @default(60)
+  status       String   @default("SCHEDULED")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  shop       Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  technician User?     @relation("TechnicianAppointments", fields: [technicianId], references: [id], onDelete: SetNull)
+  repair     Repair?   @relation(fields: [repairId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@index([scheduledAt])
 }

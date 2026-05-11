@@ -55,3 +55,368 @@ export async function countPendingRepairs(params: {
     },
   });
 }
+
+// Session fallbacks for when DB sync is missing or table schema is old
+const sessionClearedIds = new Set<string>();
+const sessionReadIds = new Set<string>();
+const sessionAllReadShops = new Set<string>();
+const sessionAllClearedShops = new Set<string>();
+
+// Full Dashboard Analytics for Shop Owner
+export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: number = 7) => {
+  const { tenant_id: tenantId, shop_id: shopId, role, user_id: userId } = auth;
+  const rangeDate = new Date();
+  rangeDate.setHours(0, 0, 0, 0); // Start of day
+  rangeDate.setDate(rangeDate.getDate() - days);
+
+  const baseWhere = {
+    tenantId,
+    ...(shopId ? { shopId } : {}),
+  };
+
+  // 1. Stats Overview
+  const totalRepairs = await prisma.repair.count({ where: baseWhere });
+  const pendingRepairsCount = await prisma.repair.count({ 
+    where: { ...baseWhere, status: { in: ["NOT_STARTED", "IN_PROGRESS"] } } 
+  });
+  const activeTechniciansCount = await prisma.user.count({ 
+    where: { ...baseWhere, role: "TECHNICIAN", isActive: true } 
+  });
+
+  const completedPayments = await prisma.payment.findMany({
+    where: { 
+      ...baseWhere, 
+      status: "COMPLETED",
+      paymentDate: { gte: rangeDate }
+    },
+    select: { amount: true, paymentDate: true }
+  });
+
+  const totalRevenue = completedPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  // Calculate percentage changes (mocked logic for now)
+  const revenueChange = "+15%";
+  const repairChange = "+8%";
+
+  // 2. Revenue Trend (Dynamic range)
+  const revenueData = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = days <= 7 
+      ? d.toLocaleDateString('en-US', { weekday: 'short' })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Standardized date comparison (YYYY-MM-DD)
+    const dStr = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    
+    // Sum revenue for this day
+    const dayRevenue = completedPayments
+      .filter(p => {
+        const pDate = p.paymentDate;
+        return `${pDate.getFullYear()}-${pDate.getMonth()}-${pDate.getDate()}` === dStr;
+      })
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      
+    revenueData.push({ date: dateStr, revenue: dayRevenue });
+  }
+
+  // 3. Repair Status Distribution
+  const allStatuses = ["NOT_STARTED", "IN_PROGRESS", "READY_TO_TAKE", "DELIVERED", "PAID"];
+  const statusCounts = await prisma.repair.groupBy({
+    by: ['status'],
+    where: baseWhere,
+    _count: { status: true }
+  });
+  
+  const countMap = Object.fromEntries(statusCounts.map(s => [s.status, s._count.status]));
+
+  const statusData = allStatuses.map(status => {
+    let color = '#F59E0B'; // Default (NOT_STARTED)
+    if (status === 'DELIVERED' || status === 'PAID') color = '#10B981';
+    if (status === 'IN_PROGRESS') color = '#4F46E5';
+    if (status === 'READY_TO_TAKE') color = '#10B981'; // Green for ready
+
+    return {
+      name: status.replace('_', ' '),
+      value: countMap[status] || 0,
+      color
+    };
+  });
+
+  // 4. Recent Repairs & Notifications Source
+  const recentRepairs = await prisma.repair.findMany({
+    where: baseWhere,
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    include: { customer: true, technician: true, device: true }
+  });
+
+  // 5. Top Technicians (by completed jobs)
+  const techs = await prisma.user.findMany({
+    where: { ...baseWhere, role: "TECHNICIAN" },
+    include: {
+      _count: {
+        select: { repairs: { where: { status: { in: ["DELIVERED", "PAID" as any] } } } }
+      }
+    },
+    orderBy: { repairs: { _count: 'desc' } },
+    take: 4
+  });
+
+  const topTechnicians = techs.map(t => ({
+    name: t.fullName,
+    jobsCompleted: (t as any)._count?.repairs || 0,
+    rating: (4.5 + Math.random() * 0.5).toFixed(1), // Mock rating
+    avatar: t.fullName.substring(0, 2).toUpperCase()
+  }));
+
+  // 6. Brand Distribution (Market Share)
+  const devicesForBrand = await prisma.repair.findMany({
+    where: baseWhere,
+    include: { device: { select: { brand: true } } },
+  });
+  
+  const brandCounts: Record<string, number> = {};
+  devicesForBrand.forEach(r => {
+    const brand = r.device?.brand || "Unknown";
+    brandCounts[brand] = (brandCounts[brand] || 0) + 1;
+  });
+  
+  const totalBrandCount = devicesForBrand.length || 1;
+  const brandData = Object.entries(brandCounts).map(([name, count]) => ({
+    name,
+    value: Math.round((count / totalBrandCount) * 100),
+    color: name === 'Apple' ? '#4F46E5' : name === 'Samsung' ? '#10B981' : name === 'Google' ? '#F59E0B' : '#94A3B8'
+  })).sort((a, b) => b.value - a.value).slice(0, 5);
+
+  // 7. Popular Services (By issue category)
+  const serviceCounts = await prisma.repair.groupBy({
+    by: ['issue'],
+    where: baseWhere,
+    _count: { issue: true },
+    _sum: { finalCost: true },
+    orderBy: { _count: { issue: 'desc' } },
+    take: 5
+  });
+
+  const topServices = serviceCounts.map(s => ({
+    name: s.issue || "General Repair",
+    count: s._count.issue,
+    revenue: `Rs. ${(s._sum.finalCost || 0).toLocaleString()}`
+  }));
+
+  // 8. Notifications Feed (Persistent with Session Fallback)
+  const currentEvents: any[] = [];
+  
+  // Fetch real timeline events for status changes if available
+  try {
+    const timelineEvents = await prisma.repairTimelineEvent.findMany({
+      where: {
+        repair: {
+          tenantId: baseWhere.tenantId,
+          ...(baseWhere.shopId ? { shopId: baseWhere.shopId } : {})
+        },
+        type: "STATUS_CHANGE"
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        repair: {
+          include: { customer: true, device: true, technician: true }
+        }
+      }
+    });
+
+    timelineEvents.forEach(event => {
+      currentEvents.push({
+        id: `timeline-${event.id}`,
+        title: "Status Update",
+        description: `${event.repair.device.model}: ${event.description}`,
+        type: "REPAIR",
+        createdAt: event.createdAt
+      });
+    });
+  } catch (err) {
+    // Fallback to deriving from recent repairs if timeline fails
+    recentRepairs.forEach(r => {
+      if (r.status === "NOT_STARTED") {
+        currentEvents.push({
+          id: `rep-new-${r.id}`,
+          title: "New repair request",
+          description: `${r.device.brand} ${r.device.model} - ${r.issue} by ${r.customer?.name || 'Customer'}`,
+          type: "REPAIR",
+          createdAt: r.createdAt
+        });
+      } else if (r.status === "IN_PROGRESS") {
+        currentEvents.push({
+          id: `rep-start-${r.id}`,
+          title: "Started repair for",
+          description: `${r.device.model} - ${r.issue} by ${r.technician?.fullName || 'Technician'}`,
+          type: "REPAIR",
+          createdAt: r.updatedAt
+        });
+      } else if (r.status === "READY_TO_TAKE") {
+        currentEvents.push({
+          id: `rep-ready-${r.id}`,
+          title: "Repair ready for pickup",
+          description: `${r.device.model} fix completed for ${r.customer?.name || 'Customer'}`,
+          type: "REPAIR",
+          createdAt: r.updatedAt
+        });
+      } else if (r.status === "DELIVERED") {
+         currentEvents.push({
+          id: `rep-done-${r.id}`,
+          title: "Repair completed",
+          description: `${r.device.model} delivered to ${r.customer?.name || 'Customer'}`,
+          type: "REPAIR",
+          createdAt: r.updatedAt
+        });
+      }
+    });
+  }
+
+  // Potential Inventory Events
+  const inventoryItems = await prisma.partsInventory.findMany({
+    where: baseWhere,
+    take: 50
+  });
+  const lowStockItems = inventoryItems.filter((item: any) => 
+    item.quantityInStock <= item.minimumStockLevel && item.isActive
+  );
+
+  lowStockItems.forEach(item => {
+    currentEvents.push({
+      id: `inv-low-${item.id}`,
+      title: "Low stock alert",
+      description: `${item.partName} dropping below threshold (${item.quantityInStock} remaining)`,
+      type: "INVENTORY",
+      createdAt: item.updatedAt
+    });
+  });
+
+  // Sync to Notification table (Upsert)
+  try {
+    for (const event of currentEvents) {
+      await (prisma as any).notification.upsert({
+        where: { id: event.id },
+        update: {}, 
+        create: {
+          id: event.id,
+          tenantId,
+          shopId,
+          title: event.title,
+          message: event.description,
+          type: event.type,
+          channel: "IN_APP",
+          createdAt: event.createdAt
+        }
+      });
+    }
+  } catch (err) {
+    // Ignore if table/schema doesn't match
+  }
+
+  // Fetch from persistent table
+  let persistentNotifications = [];
+  try {
+    persistentNotifications = await (prisma as any).notification.findMany({
+      where: {
+        shopId,
+        channel: "IN_APP",
+        isCleared: false
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+  } catch (err) {
+    // Fallback to current events
+    persistentNotifications = currentEvents.map(e => ({
+      ...e,
+      message: e.description,
+      isRead: false,
+      isCleared: false
+    }));
+  }
+
+  // Apply session-based filtering
+  const isAllCleared = shopId && sessionAllClearedShops.has(shopId);
+  const isAllRead = shopId && sessionAllReadShops.has(shopId);
+
+  const finalNotifications = isAllCleared ? [] : persistentNotifications
+    .filter((n: any) => !sessionClearedIds.has(n.id))
+    .map((n: any) => ({
+      id: n.id,
+      title: n.title,
+      description: n.message || n.description,
+      time: n.createdAt || n.time,
+      unread: (isAllRead || sessionReadIds.has(n.id)) ? false : !n.isRead,
+      type: n.type
+    }))
+    .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 20);
+
+  return {
+    stats: {
+      totalRevenue,
+      revenueChange,
+      totalRepairs,
+      repairChange,
+      pendingRepairs: pendingRepairsCount,
+      activeTechnicians: activeTechniciansCount
+    },
+    revenueData,
+    statusData,
+    brandData,
+    topServices,
+    recentRepairs: recentRepairs.slice(0, 5).map(r => ({
+      id: r.id,
+      customerName: r.customer?.name || "Unknown",
+      device: r.device.model,
+      status: r.status,
+      date: r.createdAt.toLocaleDateString(),
+      amount: (r.status === 'DELIVERED' || (r.status as any) === 'PAID') ? (r.finalCost || r.estimatedCost || 0) : (r.estimatedCost || 0)
+    })),
+    topTechnicians,
+    notifications: finalNotifications
+  };
+};
+
+export const markNotificationsRead = async (shopId: string, notificationId?: string) => {
+  if (notificationId) sessionReadIds.add(notificationId);
+  else sessionAllReadShops.add(shopId);
+  
+  try {
+    if (notificationId) {
+      return await (prisma as any).notification.update({
+        where: { id: notificationId },
+        data: { isRead: true }
+      });
+    }
+    return await (prisma as any).notification.updateMany({
+      where: { shopId, isRead: false },
+      data: { isRead: true }
+    });
+  } catch (err) {
+    return null;
+  }
+};
+
+export const clearNotifications = async (shopId: string, notificationId?: string) => {
+  if (notificationId) sessionClearedIds.add(notificationId);
+  else sessionAllClearedShops.add(shopId);
+  
+  try {
+    if (notificationId) {
+      return await (prisma as any).notification.update({
+        where: { id: notificationId },
+        data: { isCleared: true }
+      });
+    }
+    return await (prisma as any).notification.updateMany({
+      where: { shopId, isCleared: false },
+      data: { isCleared: true }
+    });
+  } catch (err) {
+    return null;
+  }
+};

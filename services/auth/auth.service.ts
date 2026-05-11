@@ -78,6 +78,7 @@ async function createTokensForUser(user: TokenUser) {
 export async function loginUser(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
+    include: { shop: { select: { shopCode: true, name: true } } },
   });
 
   if (!user) {
@@ -110,9 +111,12 @@ export async function loginUser(email: string, password: string) {
     user: {
       id: user.id,
       email: user.email,
+      fullName: user.fullName || user.name,
       role: user.role,
       tenantId: user.tenantId,
       shopId: user.shopId,
+      shopCode: (user as any).shop?.shopCode ?? null,
+      shopName: (user as any).shop?.name ?? null,
     },
     tokens,
   };

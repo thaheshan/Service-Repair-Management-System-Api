@@ -5,7 +5,11 @@ import {
   getCustomerById,
   updateCustomer,
   deleteCustomer,
+  addCustomerNote,
+  mergeCustomers,
 } from "@/services/customer/customer.service";
+import { sendSms } from "@/services/notification/notification.service";
+
 import {
   createCustomerSchema,
   updateCustomerSchema,
@@ -109,3 +113,66 @@ export const removeCustomer = async (req: Request, res: Response) => {
     });
   }
 };
+
+// POST /api/v1/customers/:customerId/notes
+export const addNote = async (req: Request, res: Response) => {
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).json({ error: "Note text is required" });
+  }
+
+  try {
+    const auth = (req as AuthRequest).user!;
+    const customerId = req.params.customerId as string;
+    const note = await addCustomerNote(customerId, auth.id, text, auth.tenantId, auth.shopId!);
+    return res.status(201).json({ message: "Note added", note });
+  } catch (error: any) {
+    logger.error(`[addNote] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({ error: "Failed to add note" });
+  }
+};
+
+// POST /api/v1/customers/:customerId/merge
+export const mergeCustomer = async (req: Request, res: Response) => {
+  const { targetId } = req.body;
+  if (!targetId) {
+    return res.status(400).json({ error: "Target customer ID is required" });
+  }
+
+  try {
+    const auth = (req as AuthRequest).user!;
+    const sourceId = req.params.customerId as string;
+    await mergeCustomers(sourceId, targetId, auth.tenantId, auth.shopId!);
+    return res.status(200).json({ message: "Customers merged successfully" });
+  } catch (error: any) {
+    logger.error(`[mergeCustomer] -> ${error.message}`);
+    return res.status(error.status ?? 500).json({ error: error.message || "Merge failed" });
+  }
+};
+
+// POST /api/v1/customers/:customerId/sms
+export const sendCustomerSMS = async (req: Request, res: Response) => {
+  const { message } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "SMS message is required" });
+  }
+
+  try {
+    const auth = (req as AuthRequest).user!;
+    const customerId = req.params.customerId as string;
+    const customer = await getCustomerById(customerId, auth.tenantId, auth.shopId!);
+    
+    if (!customer.phone) {
+      return res.status(400).json({ error: "Customer does not have a phone number" });
+    }
+
+    await sendSms(customer.phone, message);
+    return res.status(200).json({ success: true, message: "SMS sent successfully" });
+  } catch (error: any) {
+    logger.error(`[sendCustomerSMS] -> ${error.message}`);
+    return res.status(error.status ?? 400).json({ error: error.message || "Failed to send SMS" });
+  }
+};
+
+
+

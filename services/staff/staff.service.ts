@@ -145,6 +145,7 @@ export const listStaffMembers = async (
       email: true,
       fullName: true,
       name: true,
+      phone: true,
       staffDisplayId: true,
       role: true,
       isActive: true,
@@ -155,9 +156,13 @@ export const listStaffMembers = async (
 
   return users.map((u) => ({
     staffId: u.staffDisplayId ?? u.id,
+    id: u.id,
     name: (u.name && u.name.trim()) || (u.fullName && u.fullName.trim()) || u.email || u.id,
+    email: u.email,
+    phone: u.phone,
     role: roleToLabel(u.role),
     isActive: u.isActive,
+    createdAt: u.createdAt,
   }));
 };
 
