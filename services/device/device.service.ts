@@ -8,6 +8,8 @@ type DeviceCreateInput = {
   type?: string;
   imei?: string;
   serialNo?: string;
+  price?: number;
+  status?: "ACTIVE" | "AVAILABLE" | "ON_SALE" | "SOLD" | "IN_SERVICE" | "COLLECTED";
 };
 
 type DeviceUpdateInput = {
@@ -17,6 +19,8 @@ type DeviceUpdateInput = {
   type?: string;
   imei?: string;
   serialNo?: string;
+  price?: number;
+  status?: "ACTIVE" | "AVAILABLE" | "ON_SALE" | "SOLD" | "IN_SERVICE" | "COLLECTED";
 };
 
 const deviceSelect = {
@@ -29,6 +33,8 @@ const deviceSelect = {
   type: true,
   imei: true,
   serialNo: true,
+  price: true,
+  status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -168,6 +174,8 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
         type: data.type,
         imei: data.imei,
         serialNo: data.serialNo,
+        price: data.price,
+        status: data.status,
       },
       select: deviceWithCustomerSelect,
     });

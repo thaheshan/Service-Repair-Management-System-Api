@@ -56,6 +56,15 @@ enum PaymentStatus {
   FAILED
 }
 
+enum DeviceStatus {
+  ACTIVE
+  AVAILABLE
+  ON_SALE
+  SOLD
+  IN_SERVICE
+  COLLECTED
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -224,6 +233,8 @@ model Device {
   type       String?
   imei       String?
   serialNo   String?
+  price      Int?
+  status     DeviceStatus @default(ACTIVE)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
