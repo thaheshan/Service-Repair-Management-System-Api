@@ -71,7 +71,17 @@ export const editTask = async (req: Request, res: Response) => {
   try {
     const auth = (req as AuthRequest).user!;
     const taskId = req.params.taskId as string;
-    await updateTask(taskId, parsed.data, auth.tenantId, auth.shopId!);
+    
+    // ✅ CHANGED: Pass auth.id and auth.role
+    await updateTask(
+      taskId, 
+      parsed.data, 
+      auth.tenantId, 
+      auth.shopId!,
+      auth.id,        // ✅ ADD: Current user ID
+      auth.role       // ✅ ADD: Current user role
+    );
+    
     return res.status(200).json({ message: "Task updated successfully" });
   } catch (error: any) {
     logger.error(`[editTask] -> ${error.message}`);
@@ -109,7 +119,17 @@ export const updateStatus = async (req: Request, res: Response) => {
   try {
     const auth = (req as AuthRequest).user!;
     const taskId = req.params.taskId as string;
-    await updateTaskStatus(taskId, parsed.data.status, auth.tenantId, auth.shopId!);
+    
+    // ✅ CHANGED: Pass auth.id and auth.role
+    await updateTaskStatus(
+      taskId, 
+      parsed.data.status, 
+      auth.tenantId, 
+      auth.shopId!,
+      auth.id,        // ✅ ADD: Current user ID
+      auth.role       // ✅ ADD: Current user role
+    );
+    
     return res.status(200).json({ message: "Task status updated successfully" });
   } catch (error: any) {
     logger.error(`[updateStatus] -> ${error.message}`);

@@ -550,7 +550,7 @@ model Task {
   repairId          String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
+  deletedAt         DateTime?
   shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   assignedTo        User?    @relation("AssignedTasks", fields: [assignedToUserId], references: [id])
   createdBy         User     @relation("CreatedTasks", fields: [createdByUserId], references: [id])
