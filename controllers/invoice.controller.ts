@@ -36,11 +36,13 @@ export const invoiceSummary = async (req: Request, res: Response) => {
 // POST /api/v1/invoices
 export const addInvoice = async (req: Request, res: Response) => {
   const auth = (req as AuthRequest).user!;
-  const { repairId, customerId, amount, paymentMethod, paymentType, notes, transactionReference } = req.body;
+  const { repairId, customerId, amount, paymentMethod, paymentType, status, notes, transactionReference } = req.body;
 
   if (!amount || !paymentMethod || !paymentType) {
     return res.status(400).json({ success: false, message: "amount, paymentMethod, and paymentType are required" });
   }
+
+  const dbStatus = status === 'Paid' ? 'COMPLETED' : status || 'PENDING';
 
   try {
     const invoice = await createInvoice(auth.tenantId, {
@@ -50,6 +52,7 @@ export const addInvoice = async (req: Request, res: Response) => {
       amount: Number(amount),
       paymentMethod,
       paymentType,
+      status: dbStatus,
       notes,
       transactionReference,
     });
