@@ -63,12 +63,14 @@ model Tenant {
 
   shops Shop[]
   users User[]
+  invoices Invoice[]
 }
 
 model Shop {
   id                    String              @id @default(cuid())
   shopCode              String              @unique
   tenantId              String
+  invoiceSequence       Int                 @default(0)
   name                  String
   businessRegistration  String?
   address               String?
@@ -98,6 +100,7 @@ model Shop {
   customers      Customer[]
   devices        Device[]
   repairs        Repair[]
+  invoices       Invoice[]
   payments       Payment[]
   partsInventory PartsInventory[]
   settings       ShopSettings?
@@ -247,6 +250,8 @@ model Repair {
 model Invoice {
   id            String   @id @default(cuid())
   invoiceNumber String   @unique
+  tenantId      String
+  shopId        String
   repairId      String   @unique
   customerId    String
   subtotal      Float
@@ -255,9 +260,13 @@ model Invoice {
   status        String   @default("PENDING")
   createdAt     DateTime @default(now())
 
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shop     Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repair   Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([shopId])
   @@index([customerId])
   @@index([createdAt])
 }
