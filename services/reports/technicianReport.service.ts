@@ -5,7 +5,7 @@ import type {
   TechnicianReportScope,
 } from "@/types/dto/technicianReport.dto";
 import type { RepairReportPeriod } from "@/types/dto/repairReport.dto";
-import { getPeriodDateRange } from "@/services/reports/repairReport.service";
+import { getPeriodDateRange } from "@/utils/reportPeriod";
 
 type UserRoleValue = "ADMIN" | "MANAGER" | "TECHNICIAN" | "CUSTOMER";
 

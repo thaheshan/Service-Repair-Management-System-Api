@@ -45,12 +45,13 @@ export async function getRevenueReport(
       status: "COMPLETED",
       paymentDate: { gte: start, lte: end },
       repairId: { not: null },
+      tenantId: scope.tenantId,
+      ...(scope.shopId ? { shopId: scope.shopId } : {}),
       repair: {
         status: "DELIVERED",
         tenantId: scope.tenantId,
         ...(scope.shopId ? { shopId: scope.shopId } : {}),
       },
-      ...(scope.shopId ? { tenantId: scope.shopId } : {}),
     },
     _sum: { amount: true },
   });

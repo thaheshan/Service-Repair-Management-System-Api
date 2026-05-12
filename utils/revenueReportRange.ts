@@ -1,6 +1,5 @@
-import { getPeriodDateRange } from "@/services/reports/repairReport.service";
 import type { RepairReportPeriod } from "@/types/dto/repairReport.dto";
-import { parseReportPeriod } from "@/utils/reportPeriod";
+import { getPeriodDateRange, parseReportPeriod } from "@/utils/reportPeriod";
 
 export interface RevenueDateWindow {
   start: Date;
@@ -38,8 +37,13 @@ export function resolveRevenueDateWindow(query: {
 }): RevenueDateWindow {
   const fromRaw = query.from;
   const toRaw = query.to;
+  const fromProvided = fromRaw != null;
+  const toProvided = toRaw != null;
+  if (fromProvided !== toProvided) {
+    throw Object.assign(new Error("from and to must be provided together"), { status: 400 });
+  }
 
-  if (fromRaw != null && toRaw != null) {
+  if (fromProvided && toProvided) {
     if (typeof fromRaw !== "string" || typeof toRaw !== "string") {
       throw Object.assign(new Error("from and to must be ISO date strings"), { status: 400 });
     }

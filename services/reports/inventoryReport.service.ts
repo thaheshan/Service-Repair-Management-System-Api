@@ -6,7 +6,7 @@ import type {
   InventoryRestockRow,
 } from "@/types/dto/inventoryReport.dto";
 import type { RepairReportPeriod } from "@/types/dto/repairReport.dto";
-import { getPeriodDateRange } from "@/services/reports/repairReport.service";
+import { getPeriodDateRange } from "@/utils/reportPeriod";
 
 const ACTIVE_REPAIR_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "READY_TO_TAKE"] as const;
 const TOP_PARTS_LIMIT = 5;

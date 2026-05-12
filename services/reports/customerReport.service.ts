@@ -5,7 +5,7 @@ import type {
   CustomerReportScope,
 } from "@/types/dto/customerReport.dto";
 import type { RepairReportPeriod } from "@/types/dto/repairReport.dto";
-import { getPeriodDateRange } from "@/services/reports/repairReport.service";
+import { getPeriodDateRange } from "@/utils/reportPeriod";
 
 /** Display labels for `Customer.customerType` (`CustomerType` enum). */
 const CUSTOMER_TYPE_LABELS: Record<string, string> = {
@@ -44,7 +44,8 @@ function paymentAggWhere(scope: CustomerReportScope, start: Date, end: Date) {
     status: "COMPLETED" as const,
     paymentDate: { gte: start, lte: end },
     customerId: { not: null },
-    ...(scope.shopId ? { tenantId: scope.shopId } : {}),
+    tenantId: scope.tenantId,
+    ...(scope.shopId ? { shopId: scope.shopId } : {}),
     customer: customerWhere(scope),
   };
 }
