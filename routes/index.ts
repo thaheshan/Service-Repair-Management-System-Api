@@ -14,6 +14,7 @@ import subscriptionRouter from "@/routes/subscription.routes";
 import onboardingRouter from "@/routes/onboarding.routes";
 import customersRouter from "@/routes/customers.routes";
 import dashboardRouter from "@/routes/dashboard.routes";
+import reportsRouter from "@/routes/reports.routes";
 import adminRouter from "@/routes/admin.routes";
 import invoicesRouter from "@/routes/invoices.routes";
 import appointmentsRouter from "@/routes/appointments.routes";
@@ -60,5 +61,6 @@ router.use("/v1/settings", settingsRouter);
 router.use("/v1/dashboard", dashboardRouter);
 router.use("/v1/invoices", invoicesRouter);
 router.use("/v1/appointments", appointmentsRouter);
+router.use("/v1/reports", reportsRouter);
 
 export default router;
