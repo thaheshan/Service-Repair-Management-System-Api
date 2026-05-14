@@ -110,6 +110,8 @@ model Shop {
   repairs        Repair[]
   payments       Payment[]
   partsInventory PartsInventory[]
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
   settings       ShopSettings?
   appointments   Appointment[]
 
@@ -145,6 +147,7 @@ model User {
   appointments            Appointment[] @relation("TechnicianAppointments")
   repairNotes             RepairNote[]
   customerNotes           CustomerNote[]
+  poAudits                PurchaseOrderAudit[]
 
   @@index([tenantId])
   @@index([shopId])
@@ -436,10 +439,96 @@ model PartsInventory {
 
   shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairPartsUsed RepairPartsUsed[]
+  supplierId      String?
+  supplier        Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  poItems         PurchaseOrderItem[]
 
   @@index([tenantId])
   @@index([shopId])
   @@index([category])
+  @@index([supplierId])
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  website     String?
+  category    String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purchaseOrders  PurchaseOrder[]
+  inventoryItems  PartsInventory[]
+
+  @@index([tenantId])
+  @@index([shopId])
+}
+
+model PurchaseOrder {
+  id               String   @id @default(cuid())
+  tenantId         String
+  shopId           String
+  supplierId       String
+  orderNumber      String   @unique
+  status           String   @default("DRAFT") // DRAFT, SENT, RECEIVED, CANCELLED
+  totalAmount      Decimal  @db.Decimal(10, 2)
+  notes            String?
+  expectedDelivery DateTime?
+  receivedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  supplier        Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items           PurchaseOrderItem[]
+  auditLogs       PurchaseOrderAudit[]
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@index([supplierId])
+}
+
+model PurchaseOrderAudit {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopId          String
+  purchaseOrderId String
+  adminId         String
+  oldStatus       String?
+  newStatus       String
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  admin           User          @relation(fields: [adminId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([shopId])
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  partId          String?
+  partName        String
+  sku             String?
+  quantity        Int
+  unitCost        Decimal  @db.Decimal(10, 2)
+  totalCost       Decimal  @db.Decimal(10, 2)
+
+  purchaseOrder   PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  part            PartsInventory? @relation(fields: [partId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId])
+  @@index([partId])
 }
 
 model RepairPartsUsed {
