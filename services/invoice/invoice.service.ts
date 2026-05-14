@@ -45,7 +45,7 @@ export const getInvoices = async (tenantId: string) => {
         : p.status === "PENDING"
         ? "Pending"
         : "Failed",
-    date: p.paymentDate.toISOString().slice(0, 10),
+    date: p.paymentDate.toISOString(),
     staff: p.repair?.technician?.fullName ?? "Admin",
     device: p.repair?.device
       ? `${p.repair.device.brand} ${p.repair.device.model}`
@@ -69,7 +69,7 @@ export const getInvoices = async (tenantId: string) => {
         : d.status === "ON_SALE"
         ? "Pending"
         : "Pending",
-    date: d.createdAt.toISOString().slice(0, 10),
+    date: d.createdAt.toISOString(),
     staff: "Admin",
     device: `${d.brand} ${d.model}`,
     paymentMethod: "CASH",
