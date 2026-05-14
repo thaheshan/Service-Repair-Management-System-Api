@@ -80,7 +80,7 @@ export const seedDashboardData = async (req: Request, res: Response) => {
     if (!authReq.user || !authReq.user.shopId) {
       return res.status(401).json({ success: false, message: "Unauthorized or missing shop context" });
     }
-    
+
     const { tenantId, shopId } = authReq.user;
     // Import prisma locally to avoid circular deps if any
     const { prisma } = require("@/db/prisma");
@@ -113,22 +113,86 @@ export const seedDashboardData = async (req: Request, res: Response) => {
       }));
     }
 
-    const technicians = await prisma.user.findMany({
-      where: { tenantId, shopId, role: "TECHNICIAN" }
-    });
-    
+    // 4. Seeding Inventory & Usage Movement
+    let parts = await prisma.partsInventory.findMany({ where: { tenantId, shopId, isActive: true } });
+    if (parts.length === 0) {
+      const mockParts = [
+        { name: "iPhone 13 Screen OLED", cat: "Screens", cost: 12000, price: 18500 },
+        { name: "Samsung S21 Battery", cat: "Batteries", cost: 4500, price: 7500 },
+        { name: "Generic USB-C Port", cat: "Charging Ports", cost: 800, price: 2500 },
+        { name: "iPhone Camera Module", cat: "Cameras", cost: 8500, price: 12000 },
+        { name: "Glass Adhesive Pro", cat: "Tools", cost: 1200, price: 3000 }
+      ];
+
+      for (const p of mockParts) {
+        parts.push(await prisma.partsInventory.create({
+          data: {
+            tenantId,
+            shopId,
+            partName: p.name,
+            category: p.cat,
+            quantityInStock: 50,
+            minimumStockLevel: 10,
+            unitCost: p.cost,
+            sellingPrice: p.price,
+            isActive: true
+          }
+        }));
+      }
+    }
+
+    const mockIssues = [
+      "Screen Damage",
+      "Water damage – full diagnostic and repair",
+      "SIM card not detected – motherboard issue",
+      "Speaker not working – audio module replacement",
+      "Keyboard keys not responding – needs cleaning and replacement",
+      "Battery draining fast",
+      "Charging port loose",
+      "Camera lens cracked"
+    ];
+
     const statuses = ["NOT_STARTED", "IN_PROGRESS", "READY_TO_TAKE", "DELIVERED", "PAID"];
-    
-    let now = new Date();
-    
+    const now = new Date();
+    const technicians = await prisma.user.findMany({ where: { tenantId, shopId, role: "TECHNICIAN" } });
+
+    // Seed specific staff members if needed
+    if (technicians.length < 3) {
+      const staffToSeed = [
+        { name: "Amara Pathirana", email: "amara.tech@servicepro.lk", role: "TECHNICIAN" },
+        { name: "Saman Rathnayake", email: "saman.r@servicepro.lk", role: "TECHNICIAN" },
+        { name: "Suresh", email: "suresh.admin@servicepro.lk", role: "ADMIN" }
+      ];
+
+      for (const s of staffToSeed) {
+        const exists = await prisma.user.findUnique({ where: { email: s.email } });
+        if (!exists) {
+          await prisma.user.create({
+            data: {
+              tenantId,
+              shopId,
+              name: s.name,
+              fullName: s.name,
+              email: s.email,
+              password: await require("bcrypt").hash("Password123!", 12),
+              role: s.role as any,
+              isActive: true
+            }
+          });
+        }
+      }
+    }
+
     for (let i = 0; i < 30; i++) {
       const pastDate = new Date(now.getTime() - (Math.random() * 30 * 24 * 60 * 60 * 1000));
       const customer = customers[i % customers.length];
       const device = devices[i % devices.length];
       const tech = technicians.length > 0 ? technicians[i % technicians.length] : undefined;
       const status = statuses[i % statuses.length];
+      const issue = mockIssues[i % mockIssues.length];
 
       const refNum = Math.floor(100000 + Math.random() * 900000);
+      const estCost = 5000 + Math.floor(Math.random() * 15000);
 
       const repair = await prisma.repair.create({
         data: {
@@ -138,13 +202,32 @@ export const seedDashboardData = async (req: Request, res: Response) => {
           deviceId: device.id,
           reference: `#REP-MOCK-${refNum}`,
           status: status,
-          issue: "Mock seeded issue",
-          estimatedCost: 5000 + Math.floor(Math.random() * 5000),
+          issue: issue,
+          estimatedCost: estCost,
+          finalCost: (status === "PAID" || status === "DELIVERED") ? estCost : null,
           technicianId: tech?.id,
           createdAt: pastDate,
           updatedAt: pastDate
         }
       });
+
+      // Link parts usage for movement data (Fast Moving Items)
+      if (status !== "NOT_STARTED") {
+        const partsToUse = parts.slice(0, 2);
+        for (const part of partsToUse) {
+          await prisma.repairPartsUsed.create({
+            data: {
+              repairId: repair.id,
+              partId: part.id,
+              quantityUsed: 1,
+              unitPrice: part.sellingPrice,
+              totalPrice: part.sellingPrice,
+              addedByUserId: tech?.id || authReq.user!.id,
+              addedAt: pastDate
+            }
+          });
+        }
+      }
 
       if (status !== "NOT_STARTED") {
         await prisma.appointment.create({
@@ -161,18 +244,18 @@ export const seedDashboardData = async (req: Request, res: Response) => {
       }
 
       if (status === "DELIVERED" || status === "READY_TO_TAKE") {
-         await prisma.payment.create({
-           data: {
-             tenantId,
-             repairId: repair.id,
-             customerId: customer.id,
-             paymentMethod: "CASH",
-             paymentType: "FULL",
-             amount: repair.estimatedCost,
-             status: "COMPLETED",
-             paymentDate: pastDate,
-           }
-         });
+        await prisma.payment.create({
+          data: {
+            tenantId,
+            repairId: repair.id,
+            customerId: customer.id,
+            paymentMethod: "CASH",
+            paymentType: "FULL",
+            amount: repair.estimatedCost,
+            status: "COMPLETED",
+            paymentDate: pastDate,
+          }
+        });
       }
     }
 
@@ -193,10 +276,10 @@ export const markRead = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     if (!authReq.user?.shopId) return res.status(401).json({ success: false, message: "Unauthorized" });
-    
+
     const { notificationId } = req.body;
     const { markNotificationsRead } = require("@/services/dashboard/dashboard.service");
-    
+
     await markNotificationsRead(authReq.user.shopId, notificationId);
     return res.status(200).json({ success: true });
   } catch (error: any) {
@@ -209,10 +292,10 @@ export const clearAll = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     if (!authReq.user?.shopId) return res.status(401).json({ success: false, message: "Unauthorized" });
-    
+
     const { notificationId } = req.body;
     const { clearNotifications } = require("@/services/dashboard/dashboard.service");
-    
+
     await clearNotifications(authReq.user.shopId, notificationId);
     return res.status(200).json({ success: true });
   } catch (error: any) {

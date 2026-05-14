@@ -119,6 +119,7 @@ model Shop {
   purchaseOrders PurchaseOrder[]
   settings       ShopSettings?
   appointments   Appointment[]
+  staffRoles     StaffRole[]
 
   @@index([tenantId])
 }
@@ -134,6 +135,7 @@ model User {
   phone           String?  @unique
   password        String
   role            UserRole @default(TECHNICIAN)
+  specialties     String[] @default([])
   isActive        Boolean  @default(true)
   isEmailVerified Boolean  @default(false)
   twoFactorEnabled Boolean @default(false)
@@ -628,4 +630,20 @@ model Appointment {
   @@index([tenantId])
   @@index([shopId])
   @@index([scheduledAt])
+}
+
+model StaffRole {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  name        String
+  color       String   @default("#4F46E5")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([shopId])
 }

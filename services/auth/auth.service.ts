@@ -267,3 +267,24 @@ export async function completePasswordReset(token: string, newPassword: string) 
     }),
   ]);
 }
+
+export async function updateCurrentUser(userId: string, data: { fullName?: string; password?: string }) {
+  const updateData: any = {};
+  
+  if (data.fullName) {
+    updateData.fullName = data.fullName;
+    updateData.name = data.fullName; // Sync both name fields if they exist
+  }
+  
+  if (data.password) {
+    updateData.password = await hashPassword(data.password);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+    select: { id: true, email: true, fullName: true, role: true, tenantId: true, shopId: true }
+  });
+
+  return user;
+}

@@ -98,26 +98,66 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
   const revenueChange = "+15%";
   const repairChange = "+8%";
 
-  // 2. Revenue Trend (Dynamic range)
+  // 2. Revenue Trend (Daily or Monthly depending on range)
   const revenueData = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = days <= 7 
-      ? d.toLocaleDateString('en-US', { weekday: 'short' })
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    // Standardized date comparison (YYYY-MM-DD)
-    const dStr = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    
-    // Sum revenue for this day
-    const dayRevenue = completedPayments
-      .filter(p => {
-        const pDate = p.paymentDate;
-        return `${pDate.getFullYear()}-${pDate.getMonth()}-${pDate.getDate()}` === dStr;
-      })
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  
+  if (days <= 30) {
+    // Daily View (For 7d, 14d, 30d)
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = days <= 7 
+        ? d.toLocaleDateString('en-US', { weekday: 'short' })
+        : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dStr = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       
-    revenueData.push({ date: dateStr, revenue: dayRevenue });
+      const dayRevenue = completedPayments
+        .filter(p => {
+          const pDate = p.paymentDate;
+          return `${pDate.getFullYear()}-${pDate.getMonth()}-${pDate.getDate()}` === dStr;
+        })
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+      // Count repairs for this day
+      const dayRepairs = await prisma.repair.count({
+        where: {
+          ...baseWhere,
+          createdAt: { gte: d, lt: new Date(d.getTime() + 24 * 60 * 60 * 1000) }
+        }
+      });
+        
+      revenueData.push({ date: dateStr, revenue: dayRevenue, repairs: dayRepairs });
+    }
+  } else {
+    // Monthly View (Jan, Feb, Mar...)
+    const monthsToShow = days >= 999 ? 12 : Math.ceil(days / 30);
+    const now = new Date();
+    
+    for (let i = monthsToShow - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleDateString('en-US', { month: 'short' });
+      const monthIndex = d.getMonth();
+      const yearIndex = d.getFullYear();
+      
+      const monthRevenue = completedPayments
+        .filter(p => {
+          const pDate = p.paymentDate;
+          return pDate.getMonth() === monthIndex && pDate.getFullYear() === yearIndex;
+        })
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+      // Count repairs for this month
+      const startOfMonth = new Date(yearIndex, monthIndex, 1);
+      const endOfMonth = new Date(yearIndex, monthIndex + 1, 0, 23, 59, 59);
+      const monthRepairs = await prisma.repair.count({
+        where: {
+          ...baseWhere,
+          createdAt: { gte: startOfMonth, lte: endOfMonth }
+        }
+      });
+        
+      revenueData.push({ date: monthLabel, revenue: monthRevenue, repairs: monthRepairs });
+    }
   }
 
   // 3. Repair Status Distribution
@@ -194,16 +234,21 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
     by: ['issue'],
     where: baseWhere,
     _count: { issue: true },
-    _sum: { finalCost: true },
+    _sum: { finalCost: true, estimatedCost: true },
     orderBy: { _count: { issue: 'desc' } },
     take: 5
   });
 
-  const topServices = serviceCounts.map(s => ({
-    name: s.issue || "General Repair",
-    count: s._count.issue,
-    revenue: `Rs. ${(s._sum.finalCost || 0).toLocaleString()}`
-  }));
+  const topServices = serviceCounts.map(s => {
+    const finalRev = Number(s._sum.finalCost ?? 0);
+    const estRev   = Number(s._sum.estimatedCost ?? 0) * 0.8;
+    const revenue  = finalRev > 0 ? finalRev : estRev;
+    return {
+      name: s.issue || "General Repair",
+      count: s._count.issue,
+      revenue: `Rs. ${Math.round(revenue).toLocaleString()}`
+    };
+  });
 
   // 8. Notifications Feed (Persistent with Session Fallback)
   const currentEvents: any[] = [];
@@ -233,6 +278,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
         title: "Status Update",
         description: `${event.repair.device.model}: ${event.description}`,
         type: "REPAIR",
+        repairId: event.repairId,
         createdAt: event.createdAt
       });
     });
@@ -245,6 +291,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
           title: "New repair request",
           description: `${r.device.brand} ${r.device.model} - ${r.issue} by ${r.customer?.name || 'Customer'}`,
           type: "REPAIR",
+          repairId: r.id,
           createdAt: r.createdAt
         });
       } else if (r.status === "IN_PROGRESS") {
@@ -253,6 +300,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
           title: "Started repair for",
           description: `${r.device.model} - ${r.issue} by ${r.technician?.fullName || 'Technician'}`,
           type: "REPAIR",
+          repairId: r.id,
           createdAt: r.updatedAt
         });
       } else if (r.status === "READY_TO_TAKE") {
@@ -261,6 +309,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
           title: "Repair ready for pickup",
           description: `${r.device.model} fix completed for ${r.customer?.name || 'Customer'}`,
           type: "REPAIR",
+          repairId: r.id,
           createdAt: r.updatedAt
         });
       } else if (r.status === "DELIVERED") {
@@ -269,6 +318,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
           title: "Repair completed",
           description: `${r.device.model} delivered to ${r.customer?.name || 'Customer'}`,
           type: "REPAIR",
+          repairId: r.id,
           createdAt: r.updatedAt
         });
       }
@@ -307,6 +357,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
           title: event.title,
           message: event.description,
           type: event.type,
+          repairId: event.repairId || null,
           channel: "IN_APP",
           createdAt: event.createdAt
         }
@@ -350,7 +401,8 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
       description: n.message || n.description,
       time: n.createdAt || n.time,
       unread: (isAllRead || sessionReadIds.has(n.id)) ? false : !n.isRead,
-      type: n.type
+      type: n.type,
+      repairId: n.repairId
     }))
     .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .slice(0, 20);
