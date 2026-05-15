@@ -29,6 +29,7 @@ export const getAppointments = async (tenantId: string, shopId?: string) => {
     technicianName: a.technician?.fullName ?? "Unassigned",
     technicianId: a.technicianId,
     repairReference: a.repair?.reference,
+    repairId: a.repairId,
     notes: a.notes,
   }));
 };

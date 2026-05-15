@@ -7,6 +7,12 @@ import {
   updateStaff,
   validateShopId,
 } from "@/controllers/staff.controller";
+import {
+  getRoles,
+  addRole,
+  updateRole,
+  removeRole,
+} from "@/controllers/roles.controller";
 import { authenticate, authorizeRoles } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -22,5 +28,11 @@ router.get("/", authenticate, authorizeRoles("ADMIN", "MANAGER"), getStaffList);
 router.post("/", authenticate, authorizeRoles("ADMIN"), addStaff);
 router.put("/:staffId", authenticate, authorizeRoles("ADMIN"), updateStaff);
 router.delete("/:staffId", authenticate, authorizeRoles("ADMIN"), deleteStaff);
+
+// Staff Roles
+router.get("/roles", authenticate, authorizeRoles("ADMIN", "MANAGER"), getRoles);
+router.post("/roles", authenticate, authorizeRoles("ADMIN"), addRole);
+router.patch("/roles/:id", authenticate, authorizeRoles("ADMIN"), updateRole);
+router.delete("/roles/:id", authenticate, authorizeRoles("ADMIN"), removeRole);
 
 export default router;
