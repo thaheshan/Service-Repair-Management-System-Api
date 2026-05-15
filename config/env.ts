@@ -85,4 +85,24 @@ export const env = {
   STRIPE_WEBHOOK_SECRET: getEnv("STRIPE_WEBHOOK_SECRET", {
     required: true,
   }),
+
+  // ── Email (Resend preferred; SMTP fallback) ─────────────────────────────
+  RESEND_API_KEY: getEnv("RESEND_API_KEY", {
+    defaultValue: "",
+  }),
+
+  /** From header, e.g. `Service Repair Management <noreply@yourdomain.com>` */
+  EMAIL_FROM: getEnv("EMAIL_FROM", {
+    defaultValue: "",
+  }),
+
+  /** Public base URL of this API (used for verification links). No trailing slash. */
+  APP_URL: getEnv("APP_URL", {
+    defaultValue: "http://localhost:3000",
+  }),
+
+  /** Frontend origin for password reset deep links. No trailing slash. */
+  FRONTEND_URL: getEnv("FRONTEND_URL", {
+    defaultValue: "http://localhost:5173",
+  }),
 } as const;

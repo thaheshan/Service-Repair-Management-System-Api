@@ -221,8 +221,9 @@ export async function createInitialAdminUser(email: string, password: string, te
 }
 
 export async function requestPasswordReset(email: string) {
+  const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalized },
   });
 
   if (!user) {
@@ -242,7 +243,7 @@ export async function requestPasswordReset(email: string) {
   });
 
   // This endpoint is email-driven, so user.email should exist for matched rows.
-  await sendPasswordResetEmail(user.id, user.email ?? email, token);
+  await sendPasswordResetEmail(user.id, user.email ?? normalized, token, user.fullName ?? user.name);
 }
 
 export async function completePasswordReset(token: string, newPassword: string) {

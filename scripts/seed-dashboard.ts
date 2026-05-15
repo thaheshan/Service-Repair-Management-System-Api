@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, RepairStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -63,29 +63,51 @@ async function main() {
   console.log(`[Seed] Created ${customers.length} Customers.`);
 
   // 3. Create Repairs (Spread over last 30 days)
-  const statuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+  const statuses: RepairStatus[] = [
+    RepairStatus.NOT_STARTED,
+    RepairStatus.IN_PROGRESS,
+    RepairStatus.READY_TO_TAKE,
+    RepairStatus.DELIVERED,
+    RepairStatus.PAID,
+  ];
   let totalRevenue = 0;
 
+  const brands = ['Apple', 'Samsung', 'Dell', 'Sony'];
+  const types = ['Mobile', 'Laptop', 'Tablet', 'Console'];
+
   for (let i = 1; i <= 50; i++) {
-    // Random date within last 30 days
     const date = new Date();
     date.setDate(date.getDate() - Math.floor(Math.random() * 30));
 
     const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const price = Math.floor(Math.random() * 15000) + 1000; // 1000 to 16000 LKR
-    
-    if (status === 'COMPLETED') totalRevenue += price;
+    const price = Math.floor(Math.random() * 15000) + 1000;
+
+    if (status === RepairStatus.DELIVERED || status === RepairStatus.PAID) {
+      totalRevenue += price;
+    }
+
+    const customerId = customers[Math.floor(Math.random() * customers.length)].id;
+
+    const device = await prisma.device.create({
+      data: {
+        tenantId,
+        shopId,
+        customerId,
+        brand: brands[Math.floor(Math.random() * brands.length)],
+        model: `Model X-${Math.floor(Math.random() * 100)}`,
+        type: types[Math.floor(Math.random() * types.length)],
+      },
+    });
 
     await prisma.repair.create({
       data: {
         tenantId,
         shopId,
-        customerId: customers[Math.floor(Math.random() * customers.length)].id,
+        customerId,
+        deviceId: device.id,
+        reference: `SEED-${tenantId.slice(0, 8)}-${i}-${Date.now()}`,
         technicianId: techs[Math.floor(Math.random() * techs.length)].id,
-        deviceType: ['Mobile', 'Laptop', 'Tablet', 'Console'][Math.floor(Math.random() * 4)],
-        deviceBrand: ['Apple', 'Samsung', 'Dell', 'Sony'][Math.floor(Math.random() * 4)],
-        deviceModel: `Model X-${Math.floor(Math.random() * 100)}`,
-        issueDescription: `Screen cracked or battery issue #${i}`,
+        issue: `Screen cracked or battery issue #${i}`,
         status,
         estimatedCost: price,
         createdAt: date,

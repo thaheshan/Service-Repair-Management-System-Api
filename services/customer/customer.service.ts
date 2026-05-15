@@ -1,6 +1,49 @@
 import { prisma } from "@/db/prisma";
 import { CreateCustomerRequest, UpdateCustomerRequest } from "@/types/dto/customer.dto";
 import { logger } from "@/config/logger.config";
+import { sendCustomerRequestConfirmationEmail } from "@/services/email/email.service";
+
+async function notifyCustomerRequestConfirmation(
+  customer: { id: string; name: string; email: string | null; tier: string; phone: string | null },
+  data: CreateCustomerRequest,
+  shopId: string
+): Promise<void> {
+  const email = customer.email?.trim();
+  if (!email) return;
+
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { name: true },
+  });
+
+  const summaryRows = [
+    { label: "Phone", value: data.phone ?? customer.phone ?? "" },
+    { label: "Email", value: email },
+    { label: "Address", value: data.address ?? "" },
+    { label: "Service tier", value: customer.tier ?? "" },
+    {
+      label: "Request summary",
+      value:
+        "Your details are on file with the shop. If you described a repair elsewhere (for example in person or on the phone), the team will match this profile to that job.",
+    },
+  ];
+
+  try {
+    await sendCustomerRequestConfirmationEmail({
+      customerEmail: email,
+      customerName: customer.name,
+      shopName: shop?.name ?? "Your repair shop",
+      summaryRows,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({
+      msg: "customer_request_confirmation_skipped_after_failure",
+      customerId: customer.id,
+      error: message,
+    });
+  }
+}
 
 export const createCustomer = async (
   data: CreateCustomerRequest,
@@ -31,6 +74,9 @@ export const createCustomer = async (
 
 
   logger.info(`[createCustomer] -> Customer created: ${customer.id}`);
+
+  await notifyCustomerRequestConfirmation(customer, data, shopId);
+
   return customer;
 };
 
@@ -306,4 +352,4 @@ export const mergeCustomers = async (
 
   logger.info(`[mergeCustomers] -> Merge completed successfully`);
 };
-
+
