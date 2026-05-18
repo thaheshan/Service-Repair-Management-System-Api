@@ -108,28 +108,22 @@ export const updateShopSettings = async (
 
 
   try {
-    const transactions: any[] = [];
-    
     if (Object.keys(shopUpdatePayload).length > 0) {
-      transactions.push(prisma.shop.update({
+      await prisma.shop.update({
         where: { id: shopId },
         data: shopUpdatePayload,
-      }));
+      });
     }
 
     if (Object.keys(settingsUpdatePayload).length > 0) {
-      transactions.push(prisma.shopSettings.upsert({
+      await prisma.shopSettings.upsert({
         where: { tenantId: shopId },
         create: {
           tenantId: shopId,
           ...settingsUpdatePayload,
         },
         update: settingsUpdatePayload,
-      }));
-    }
-
-    if (transactions.length > 0) {
-      await prisma.$transaction(transactions);
+      });
     }
   } catch (error: any) {
     if (error.code === "P2025") {

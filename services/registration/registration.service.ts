@@ -58,20 +58,14 @@ export const approveRegistrationRequest = async (token: string) => {
     data: { status: "APPROVED" }
   });
 
-  // DEVELOPMENT BYPASS: Automatically finalize if in development
-  if (process.env.NODE_ENV === 'development') {
-    logger.info(`[RegistrationService] DEV MODE: Auto-finalizing registration for ${request.id}`);
-    await finalizeRegistration(request.id, "DEV_MOCK_PAYMENT");
-  } else {
-    try {
-      await sendUserPaymentLinkEmail(updatedRequest);
-      logger.info(`[RegistrationService] Payment link sent to user: ${request.ownerEmail}`);
-    } catch (error) {
-      logger.error(`[RegistrationService] Failed to send payment email: ${error}`);
-    }
+  try {
+    await sendUserPaymentLinkEmail(updatedRequest);
+    logger.info(`[RegistrationService] Payment link sent to user: ${request.ownerEmail}`);
+  } catch (error) {
+    logger.error(`[RegistrationService] Failed to send payment email: ${error}`);
   }
 
-  return { message: "Registration approved and account finalized successfully" };
+  return { message: "Registration approved and payment link sent successfully" };
 };
 
 export const finalizeRegistration = async (requestId: string, paymentIntentId: string) => {
@@ -180,7 +174,7 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
 export const getRegistrationRequestStatus = async (id: string) => {
   const request = await prisma.registrationRequest.findUnique({
     where: { id },
-    select: { id: true, status: true, shopName: true, ownerEmail: true, ownerName: true }
+    select: { id: true, status: true, shopName: true, ownerEmail: true, ownerName: true, createdAt: true, fullData: true }
   });
   if (!request) throw { status: 404, message: "Request not found" };
   return request;
