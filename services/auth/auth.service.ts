@@ -78,7 +78,22 @@ async function createTokensForUser(user: TokenUser) {
 export async function loginUser(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
-    include: { shop: { select: { shopCode: true, name: true } } },
+    include: {
+      shop: {
+        select: {
+          shopCode: true,
+          name: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          country: true,
+          postalCode: true,
+          taxNumber: true,
+          website: true
+        }
+      }
+    },
   });
 
   if (!user) {
@@ -117,6 +132,14 @@ export async function loginUser(email: string, password: string) {
       shopId: user.shopId,
       shopCode: (user as any).shop?.shopCode ?? null,
       shopName: (user as any).shop?.name ?? null,
+      shopEmail: (user as any).shop?.email ?? null,
+      shopPhone: (user as any).shop?.phone ?? null,
+      shopAddress: (user as any).shop?.address ?? null,
+      shopCity: (user as any).shop?.city ?? null,
+      shopCountry: (user as any).shop?.country ?? null,
+      shopPostalCode: (user as any).shop?.postalCode ?? null,
+      shopTaxNumber: (user as any).shop?.taxNumber ?? null,
+      shopWebsite: (user as any).shop?.website ?? null,
     },
     tokens,
   };
@@ -133,7 +156,26 @@ export async function refreshSession(refreshToken: string) {
   const tokenHash = sha256Base64Url(refreshToken);
   const stored = await prisma.refreshToken.findUnique({
     where: { id: decoded.jti },
-    include: { user: true },
+    include: {
+      user: {
+        include: {
+          shop: {
+            select: {
+              shopCode: true,
+              name: true,
+              email: true,
+              phone: true,
+              address: true,
+              city: true,
+              country: true,
+              postalCode: true,
+              taxNumber: true,
+              website: true
+            }
+          }
+        }
+      }
+    },
   });
 
   if (!stored || stored.tokenHash !== tokenHash || stored.revokedAt || stored.expiresAt < new Date()) {
@@ -158,9 +200,20 @@ export async function refreshSession(refreshToken: string) {
     user: {
       id: user.id,
       email: user.email,
+      fullName: user.fullName || user.name || "",
       role: user.role,
       tenantId: user.tenantId,
       shopId: user.shopId,
+      shopCode: user.shop?.shopCode ?? null,
+      shopName: user.shop?.name ?? null,
+      shopEmail: user.shop?.email ?? null,
+      shopPhone: user.shop?.phone ?? null,
+      shopAddress: user.shop?.address ?? null,
+      shopCity: user.shop?.city ?? null,
+      shopCountry: user.shop?.country ?? null,
+      shopPostalCode: user.shop?.postalCode ?? null,
+      shopTaxNumber: user.shop?.taxNumber ?? null,
+      shopWebsite: user.shop?.website ?? null,
     },
     tokens,
   };
@@ -181,14 +234,48 @@ export async function logoutSession(refreshToken: string): Promise<void> {
 export async function getCurrentUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, role: true, tenantId: true, shopId: true, createdAt: true, updatedAt: true },
+    include: {
+      shop: {
+        select: {
+          shopCode: true,
+          name: true,
+          email: true,
+          phone: true,
+          address: true,
+          city: true,
+          country: true,
+          postalCode: true,
+          taxNumber: true,
+          website: true
+        }
+      }
+    }
   });
 
   if (!user) {
     throw { status: 404, message: "User not found" };
   }
 
-  return user;
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName || user.name || "",
+    role: user.role,
+    tenantId: user.tenantId,
+    shopId: user.shopId,
+    shopCode: user.shop?.shopCode ?? null,
+    shopName: user.shop?.name ?? null,
+    shopEmail: user.shop?.email ?? null,
+    shopPhone: user.shop?.phone ?? null,
+    shopAddress: user.shop?.address ?? null,
+    shopCity: user.shop?.city ?? null,
+    shopCountry: user.shop?.country ?? null,
+    shopPostalCode: user.shop?.postalCode ?? null,
+    shopTaxNumber: user.shop?.taxNumber ?? null,
+    shopWebsite: user.shop?.website ?? null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 }
 
 export async function createInitialAdminUser(email: string, password: string, tenantName: string) {

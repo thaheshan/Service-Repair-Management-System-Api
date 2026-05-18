@@ -61,6 +61,8 @@ export const createPayHereParams = async (req: Request, res: Response) => {
     const fee = parseFloat(process.env.REGISTRATION_FEE_LKR || "2500");
     const currency = "LKR";
     
+    logger.info(`[PayHere Debug] config: ${JSON.stringify(config)}, fee: ${fee}, currency: ${currency}, requestId: ${requestId}`);
+    
     const hash = payhereService.generatePayHereHash(
       config.merchant_id,
       requestId,
@@ -68,6 +70,8 @@ export const createPayHereParams = async (req: Request, res: Response) => {
       currency,
       config.merchant_secret
     );
+
+    logger.info(`[PayHere Debug] Generated Hash: ${hash}`);
 
     const params = {
       merchant_id: config.merchant_id,
@@ -87,6 +91,15 @@ export const createPayHereParams = async (req: Request, res: Response) => {
       address: "Address", 
       city: "City",
       country: "Sri Lanka",
+      _debug: {
+        config,
+        fee,
+        currency,
+        calculatedHash: hash,
+        envSecret: process.env.PAYHERE_MERCHANT_SECRET,
+        envId: process.env.PAYHERE_MERCHANT_ID,
+        envFee: process.env.REGISTRATION_FEE_LKR
+      }
     };
 
     return res.json({ success: true, data: params });
