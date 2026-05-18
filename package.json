@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec \"ts-node -r tsconfig-paths/register index.ts\"",
+    "postinstall": "prisma generate",
     "start": "ts-node -r tsconfig-paths/register index.ts",
     "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
