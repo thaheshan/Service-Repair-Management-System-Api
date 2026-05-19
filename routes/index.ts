@@ -24,6 +24,7 @@ import {
   registerShop,
   sendVerification as sendShopVerification,
 } from "@/controllers/shop.controller";
+import taskRouter from "@/routes/task.routes";
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.post("/v1/shops/send-verification", sendShopVerification);
 // Public Payment & Subscription webhooks (must be before authenticate)
 router.use("/v1/payment", paymentRouter);
 router.use("/v1/subscription", subscriptionRouter);
+router.use("/v1/staff", staffRouter);
 
 // Protected routes (authentication required)
 router.use(authenticate);
@@ -54,7 +56,6 @@ router.use("/v1/users", usersRouter);
 router.use("/v1/shops", shopsRouter);
 router.use("/v1/repairs", repairsRouter);
 router.use("/v1/devices", devicesRouter);
-router.use("/v1/staff", staffRouter);
 router.use("/v1/customers", customersRouter);
 router.use("/v1/inventory", inventoryRouter);
 router.use("/v1/settings", settingsRouter);
@@ -62,5 +63,7 @@ router.use("/v1/dashboard", dashboardRouter);
 router.use("/v1/invoices", invoicesRouter);
 router.use("/v1/appointments", appointmentsRouter);
 router.use("/v1/reports", reportsRouter);
+
+router.use("/v1/tasks", taskRouter);
 
 export default router;

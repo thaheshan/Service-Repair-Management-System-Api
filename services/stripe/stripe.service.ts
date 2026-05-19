@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { logger } from "@/config/logger.config";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2026-03-25.dahlia', // Use latest or version from dashboard
+  apiVersion: '2026-03-25.dahlia', // Pinned to installed stripe package version
 });
 
 export const createPaymentIntent = async (amount: number, currency: string = 'lkr', metadata: any = {}) => {
