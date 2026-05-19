@@ -1,11 +1,20 @@
 import { prisma } from "@/db/prisma";
 import { Priority } from "@prisma/client";
 
-export const getTenantRepairs = async (tenantId: string) => {
+export const getTenantRepairs = async (
+  tenantId: string, 
+  page?: number,
+  limit?: number
+) => {
+  const hasPagination = page !== undefined && limit !== undefined;
+  const skip = hasPagination ? (page - 1) * limit : undefined;
+  const take = hasPagination ? limit : undefined;
+
   return prisma.repair.findMany({
     where: { tenantId },
     include: { customer: true, device: true, technician: { select: { id: true, email: true, fullName: true, role: true } } },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    ...(hasPagination ? { skip, take } : {}),
   });
 };
 

@@ -31,7 +31,7 @@ export const env = {
   }),
 
   ACCESS_TOKEN_EXPIRY: getEnv("ACCESS_TOKEN_EXPIRY", {
-    defaultValue: "15m",
+    defaultValue: "365d",
   }),
 
   REFRESH_TOKEN_EXPIRY: getEnv("REFRESH_TOKEN_EXPIRY", {

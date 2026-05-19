@@ -63,8 +63,17 @@ export const searchCustomers = async (
   return customers;
 };
 
-export const getCustomers = async (tenantId: string, shopId: string) => {
-  logger.info(`[getCustomers] -> Fetching all customers for shop: ${shopId}`);
+export const getCustomers = async (
+  tenantId: string, 
+  shopId: string,
+  page?: number,
+  limit?: number
+) => {
+  logger.info(`[getCustomers] -> Fetching customers for shop: ${shopId} (page: ${page}, limit: ${limit})`);
+
+  const hasPagination = page !== undefined && limit !== undefined;
+  const skip = hasPagination ? (page - 1) * limit : undefined;
+  const take = hasPagination ? limit : undefined;
 
   const customers = await prisma.customer.findMany({
     where: { tenantId, shopId },
@@ -86,6 +95,7 @@ export const getCustomers = async (tenantId: string, shopId: string) => {
       }
     },
     orderBy: { createdAt: "desc" },
+    ...(hasPagination ? { skip, take } : {}),
   });
 
   logger.info(`[getCustomers] -> Found ${customers.length} customers`);
