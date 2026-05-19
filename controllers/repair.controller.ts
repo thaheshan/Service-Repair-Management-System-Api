@@ -8,6 +8,7 @@ import {
   addRepairNote,
 } from "@/services/repair/repair.service";
 import type { AuthRequest } from "@/types/auth.types";
+import { invalidateDashboardCache } from "@/services/dashboard/dashboard.service";
 
 export const addNote = async (req: AuthRequest, res: Response) => {
   try {
@@ -24,7 +25,9 @@ export const addNote = async (req: AuthRequest, res: Response) => {
 
 export const getRepairs = async (req: AuthRequest, res: Response) => {
   try {
-    const repairs = await getTenantRepairs(req.user!.tenantId);
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const repairs = await getTenantRepairs(req.user!.tenantId, page, limit);
     res.status(200).json({ success: true, data: repairs });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to fetch repairs" });
@@ -60,6 +63,10 @@ export const createRepair = async (req: AuthRequest, res: Response) => {
       estimatedCost,
       technicianId,
     });
+    
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(req.user!.tenantId, req.user!.shopId);
+
     res.status(201).json({ success: true, data: repair });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to create repair" });
@@ -82,6 +89,10 @@ export const updateRepair = async (req: AuthRequest, res: Response) => {
     if (technicianId !== undefined) updateData.technicianId = technicianId;
 
     const repair = await updateTenantRepair(id, req.user!.tenantId, updateData);
+    
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(req.user!.tenantId, req.user!.shopId);
+
     res.status(200).json({ success: true, data: repair });
   } catch (error: any) {
     console.error("====== PATCH REPAIR FATAL ERROR ======");
@@ -95,6 +106,10 @@ export const deleteRepair = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     await deleteTenantRepair(id, req.user!.tenantId);
+    
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(req.user!.tenantId, req.user!.shopId);
+
     res.status(200).json({ success: true, message: "Repair deleted successfully" });
   } catch (error: any) {
     res.status(error.status ?? 500).json({ success: false, message: error.message ?? "Failed to delete repair" });

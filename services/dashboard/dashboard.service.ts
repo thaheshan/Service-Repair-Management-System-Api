@@ -2,6 +2,8 @@ import { prisma } from "@/db/prisma";
 import { logger } from "@/config/logger.config";
 import type { DashboardAuthContext, TodayRepairsResponse } from "@/types/dto/dashboard.dto";
 import type { AuthRole } from "@/types/auth.types";
+import { getCachedData, setCachedData } from "@/services/cache/cache";
+
 
 export const getTodayRepairs = async (
   auth: DashboardAuthContext
@@ -65,6 +67,21 @@ const sessionAllClearedShops = new Set<string>();
 // Full Dashboard Analytics for Shop Owner
 export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: number = 7) => {
   const { tenant_id: tenantId, shop_id: shopId, role, user_id: userId } = auth;
+  const cacheKey = `dashboard:analytics:${tenantId}:${shopId || 'all'}:${days}`;
+
+  // Attempt Cache Read
+  try {
+    const cached = await getCachedData<any>(cacheKey);
+    if (cached) {
+      logger.info(`[getDashboardAnalytics] -> Cache HIT for key: ${cacheKey}`);
+      return cached;
+    }
+  } catch (err: any) {
+    logger.warn(`[getDashboardAnalytics] -> Cache read failed: ${err.message}`);
+  }
+
+  logger.info(`[getDashboardAnalytics] -> Cache MISS. Calculating analytics for ${days} days...`);
+
   const rangeDate = new Date();
   rangeDate.setHours(0, 0, 0, 0); // Start of day
   rangeDate.setDate(rangeDate.getDate() - days);
@@ -90,6 +107,15 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
       paymentDate: { gte: rangeDate }
     },
     select: { amount: true, paymentDate: true }
+  });
+
+  // Optimize Query Count Trend: fetch repairs created in date range ONCE
+  const repairsInRange = await prisma.repair.findMany({
+    where: {
+      ...baseWhere,
+      createdAt: { gte: rangeDate }
+    },
+    select: { createdAt: true }
   });
 
   const totalRevenue = completedPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -118,13 +144,14 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
         })
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-      // Count repairs for this day
-      const dayRepairs = await prisma.repair.count({
-        where: {
-          ...baseWhere,
-          createdAt: { gte: d, lt: new Date(d.getTime() + 24 * 60 * 60 * 1000) }
-        }
-      });
+      // Count repairs for this day in memory
+      const dStart = new Date(d);
+      dStart.setHours(0, 0, 0, 0);
+      const dEnd = new Date(dStart.getTime() + 24 * 60 * 60 * 1000);
+      const dayRepairs = repairsInRange.filter(r => {
+        const rDate = new Date(r.createdAt);
+        return rDate >= dStart && rDate < dEnd;
+      }).length;
         
       revenueData.push({ date: dateStr, revenue: dayRevenue, repairs: dayRepairs });
     }
@@ -146,15 +173,13 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
         })
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-      // Count repairs for this month
+      // Count repairs for this month in memory
       const startOfMonth = new Date(yearIndex, monthIndex, 1);
       const endOfMonth = new Date(yearIndex, monthIndex + 1, 0, 23, 59, 59);
-      const monthRepairs = await prisma.repair.count({
-        where: {
-          ...baseWhere,
-          createdAt: { gte: startOfMonth, lte: endOfMonth }
-        }
-      });
+      const monthRepairs = repairsInRange.filter(r => {
+        const rDate = new Date(r.createdAt);
+        return rDate >= startOfMonth && rDate <= endOfMonth;
+      }).length;
         
       revenueData.push({ date: monthLabel, revenue: monthRevenue, repairs: monthRepairs });
     }
@@ -407,7 +432,7 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
     .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .slice(0, 20);
 
-  return {
+  const result = {
     stats: {
       totalRevenue,
       revenueChange,
@@ -431,6 +456,15 @@ export const getDashboardAnalytics = async (auth: DashboardAuthContext, days: nu
     topTechnicians,
     notifications: finalNotifications
   };
+
+  try {
+    await setCachedData(cacheKey, result, 300); // Cache for 5 mins
+    logger.info(`[getDashboardAnalytics] -> Cached analytics result for key: ${cacheKey}`);
+  } catch (err: any) {
+    logger.warn(`[getDashboardAnalytics] -> Cache write failed: ${err.message}`);
+  }
+
+  return result;
 };
 
 export const markNotificationsRead = async (shopId: string, notificationId?: string) => {
@@ -470,5 +504,16 @@ export const clearNotifications = async (shopId: string, notificationId?: string
     });
   } catch (err) {
     return null;
+  }
+};
+
+export const invalidateDashboardCache = async (tenantId: string, shopId?: string | null) => {
+  const { invalidateCachePattern } = require("@/services/cache/cache");
+  const pattern = `dashboard:analytics:${tenantId}:${shopId || "*"}:*`;
+  try {
+    await invalidateCachePattern(pattern);
+    logger.info(`[invalidateDashboardCache] -> Invalidated dashboard cache for pattern: ${pattern}`);
+  } catch (err: any) {
+    logger.warn(`[invalidateDashboardCache] -> Failed to invalidate: ${err.message}`);
   }
 };
