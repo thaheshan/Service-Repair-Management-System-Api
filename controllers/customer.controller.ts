@@ -59,7 +59,9 @@ export const searchCustomer = async (req: Request, res: Response) => {
 export const listCustomers = async (req: Request, res: Response) => {
   try {
     const auth = (req as AuthRequest).user!;
-    const customers = await getCustomers(auth.tenantId, auth.shopId!);
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const customers = await getCustomers(auth.tenantId, auth.shopId!, page, limit);
     return res.status(200).json({ customers });
   } catch (error: any) {
     logger.error(`[listCustomers] -> ${error.message}`);

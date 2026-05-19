@@ -8,6 +8,7 @@ import {
   deleteInvoice,
   getInvoiceSummary,
 } from "@/services/invoice/invoice.service";
+import { invalidateDashboardCache } from "@/services/dashboard/dashboard.service";
 
 // GET /api/v1/invoices
 export const listInvoices = async (req: Request, res: Response) => {
@@ -56,6 +57,10 @@ export const addInvoice = async (req: Request, res: Response) => {
       notes,
       transactionReference,
     });
+
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(auth.tenantId, auth.shopId);
+
     return res.status(201).json({ success: true, invoice });
   } catch (error: any) {
     logger.error(`[addInvoice] -> ${error.message}`);
@@ -75,6 +80,10 @@ export const patchInvoiceStatus = async (req: Request, res: Response) => {
     }
 
     const updated = await updateInvoiceStatus(id, auth.tenantId, status, amount ? Number(amount) : undefined);
+
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(auth.tenantId, auth.shopId);
+
     return res.status(200).json({ success: true, invoice: updated });
   } catch (error: any) {
     logger.error(`[patchInvoiceStatus] -> ${error.message}`);
@@ -88,6 +97,10 @@ export const removeInvoice = async (req: Request, res: Response) => {
     const auth = (req as AuthRequest).user!;
     const id = req.params.id as string;
     await deleteInvoice(id, auth.tenantId);
+
+    // Invalidate dashboard analytics cache
+    await invalidateDashboardCache(auth.tenantId, auth.shopId);
+
     return res.status(200).json({ success: true, message: "Invoice deleted" });
   } catch (error: any) {
     logger.error(`[removeInvoice] -> ${error.message}`);
