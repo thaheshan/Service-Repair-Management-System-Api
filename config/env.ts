@@ -79,10 +79,10 @@ export const env = {
 
   // ── Stripe ───────────────────────────────────────────
   STRIPE_SECRET_KEY: getEnv("STRIPE_SECRET_KEY", {
-    required: true,
+    defaultValue: "",
   }),
 
   STRIPE_WEBHOOK_SECRET: getEnv("STRIPE_WEBHOOK_SECRET", {
-    required: true,
+    defaultValue: "",
   }),
 } as const;

@@ -78,9 +78,9 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
   if (!request) throw { status: 404, message: "Request not found" };
   if (request.status !== "APPROVED") throw { status: 400, message: "Request must be approved before payment" };
 
-  // Verify Stripe Status (Bypass in TEST mode)
-  if (process.env.PAYMENT_MODE === 'TEST') {
-    logger.info(`[RegistrationService] MOCK PAYMENT VERIFIED for request: ${requestId}`);
+  // Verify Stripe Status (Bypass in TEST mode or for PayHere/manual payments)
+  if (process.env.PAYMENT_MODE === 'TEST' || paymentIntentId.startsWith('PAYHERE_') || paymentIntentId.startsWith('BANK_')) {
+    logger.info(`[RegistrationService] Payment bypass verified for request: ${requestId} via ${paymentIntentId}`);
   } else {
     const isPaid = await verifyPaymentIntent(paymentIntentId, requestId);
     if (!isPaid) throw { status: 400, message: "Payment not verified" };
