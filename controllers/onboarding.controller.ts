@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import * as registrationService from "@/services/registration/registration.service";
-import * as stripeService from "@/services/stripe/stripe.service";
 import { logger } from "@/config/logger.config";
 import { registerShopSchema } from "@/validators/shop/shop.validator";
 
@@ -110,22 +109,10 @@ export const createPayHereParams = async (req: Request, res: Response) => {
 };
 
 export const createPaymentIntent = async (req: Request, res: Response) => {
-  try {
-    const { requestId } = req.body;
-    const request = await registrationService.getRegistrationRequestStatus(requestId);
-    
-    if (request.status !== "APPROVED") {
-      return res.status(400).json({ message: "Registration not yet approved by admin" });
-    }
-
-    const fee = parseInt(process.env.REGISTRATION_FEE_LKR || "25");
-    const intent = await stripeService.createPaymentIntent(fee, "lkr", { requestId });
-    
-    return res.json(intent);
-  } catch (error: any) {
-    logger.error(`[OnboardingController] Error creating intent: ${error.message}`);
-    return res.status(500).json({ message: error.message });
-  }
+  return res.status(400).json({ 
+    success: false, 
+    message: "Stripe payments are disabled. Please use PayHere instead." 
+  });
 };
 
 export const finalizeRegistration = async (req: Request, res: Response) => {
