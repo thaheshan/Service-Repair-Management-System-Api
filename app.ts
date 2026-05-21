@@ -26,8 +26,8 @@ app.use(
 // parse urlencoded request body
 app.use(
   express.urlencoded({
-    extended: false,
-    parameterLimit: 10,
+    extended: true,
+    parameterLimit: 100000,
     limit: "5mb",
   }),
 );
