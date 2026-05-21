@@ -25,6 +25,17 @@ export const approveRegistration = async (req: Request, res: Response) => {
   }
 };
 
+export const rejectRegistration = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    await registrationService.rejectRegistrationRequest(token as string);
+    return res.status(200).json({ success: true, message: "Registration rejected successfully" });
+  } catch (error: any) {
+    logger.error(`[OnboardingController] Error rejecting: ${error.message}`);
+    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
+  }
+};
+
 export const getStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
