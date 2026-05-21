@@ -187,6 +187,25 @@ export const getAllRegistrationRequests = async (status?: string) => {
   });
 };
 
+export const rejectRegistrationRequest = async (token: string) => {
+  logger.info(`[RegistrationService] Rejecting request with token: ${token}`);
+
+  const request = await prisma.registrationRequest.findUnique({
+    where: { approvalToken: token }
+  });
+
+  if (!request) throw { status: 404, message: "Registration request not found" };
+  if (request.status === "COMPLETED") throw { status: 400, message: "Request is already COMPLETED" };
+  if (request.status === "REJECTED") throw { status: 400, message: "Request is already REJECTED" };
+
+  await prisma.registrationRequest.update({
+    where: { id: request.id },
+    data: { status: "REJECTED" }
+  });
+
+  return { message: "Registration request rejected successfully" };
+};
+
 export const resendAdminApprovalEmail = async (id: string) => {
   logger.info(`[RegistrationService] Resending admin notification for request: ${id}`);
 
