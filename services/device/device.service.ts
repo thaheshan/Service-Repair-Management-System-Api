@@ -21,6 +21,7 @@ type DeviceUpdateInput = {
   serialNo?: string;
   price?: number;
   status?: "ACTIVE" | "AVAILABLE" | "ON_SALE" | "SOLD" | "IN_SERVICE" | "COLLECTED";
+  autoUpdateCustomer?: boolean;
 };
 
 const deviceSelect = {
@@ -203,7 +204,7 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
 export const updateTenantDevice = async (id: string, tenantId: string, data: DeviceUpdateInput) => {
   const existing = await prisma.device.findFirst({
     where: { id, tenantId },
-    select: { id: true, shopId: true },
+    select: { id: true, shopId: true, status: true },
   });
 
   if (!existing) {
@@ -227,11 +228,26 @@ export const updateTenantDevice = async (id: string, tenantId: string, data: Dev
   }
 
   try {
-    return await prisma.device.update({
+    const { autoUpdateCustomer, ...updateData } = data;
+
+    const device = await prisma.device.update({
       where: { id: existing.id },
-      data,
+      data: updateData,
       select: deviceWithCustomerSelect,
     });
+
+    if (autoUpdateCustomer && data.status && existing.status !== data.status && device.customer?.phone) {
+      const shop = await prisma.shop.findFirst({ where: { id: existing.shopId }, select: { name: true } });
+      const shopName = shop?.name || "Our Shop";
+      const statusText = data.status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+      const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) status has been updated to: ${statusText}.\n\nThank you for choosing ${shopName}!`;
+      
+      await sendSms(device.customer.phone, message).catch((err) => {
+        console.error("Non-fatal: Failed to send SMS on device status update:", err);
+      });
+    }
+
+    return device;
   } catch (error: any) {
     if (error.code === "P2002") {
       throw { status: 409, message: "A device with this IMEI already exists for this shop" };

@@ -28,6 +28,7 @@ export const updateDeviceSchema = z
     serialNo: z.string().trim().min(2).optional(),
     price: z.number().nonnegative().optional(),
     status: z.enum(["ACTIVE", "AVAILABLE", "ON_SALE", "SOLD", "IN_SERVICE", "COLLECTED"]).optional(),
+    autoUpdateCustomer: z.boolean().optional(),
   })
   .refine((payload: Record<string, unknown>) => Object.keys(payload).length > 0, {
     message: "At least one field is required",
