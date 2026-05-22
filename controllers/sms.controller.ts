@@ -1,11 +1,12 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { logger } from "@/config/logger.config";
 import { sendSms } from "@/services/notification/notification.service";
 import { prisma } from "@/db/prisma";
+import type { AuthRequest } from "@/types/auth.types";
 
-export const sendStandardSms = async (req: Request, res: Response) => {
+export const sendStandardSms = async (req: AuthRequest, res: Response) => {
   try {
-    const { tenantId, shopId } = req.user as any;
+    const { tenantId, shopId } = req.user!;
     const { to, message } = req.body;
 
     if (!to || !message) {
@@ -13,7 +14,7 @@ export const sendStandardSms = async (req: Request, res: Response) => {
     }
 
     const shop = await prisma.shop.findFirst({
-      where: { id: shopId, tenantId },
+      where: { id: shopId!, tenantId },
       select: { name: true }
     });
 
