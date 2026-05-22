@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec \"ts-node -r tsconfig-paths/register index.ts\"",
-    "postinstall": "prisma generate",
     "start": "ts-node -r tsconfig-paths/register index.ts",
     "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -40,7 +39,7 @@
     "@types/nodemailer": "^7.0.11",
     "@types/pg": "^8.16.0",
     "@types/uuid": "^10.0.0",
-    "nodemon": "^3.1.14",
+    "nodemon": "^3.1.11",
     "nx": "^22.3.3",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
