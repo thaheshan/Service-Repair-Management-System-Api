@@ -1,0 +1,30 @@
+import { Request, Response } from "express";
+import { logger } from "@/config/logger.config";
+import { sendSms } from "@/services/notification/notification.service";
+import { prisma } from "@/db/prisma";
+
+export const sendStandardSms = async (req: Request, res: Response) => {
+  try {
+    const { tenantId, shopId } = req.user as any;
+    const { to, message } = req.body;
+
+    if (!to || !message) {
+      return res.status(400).json({ success: false, message: "Missing 'to' or 'message' in request body." });
+    }
+
+    const shop = await prisma.shop.findFirst({
+      where: { id: shopId, tenantId },
+      select: { shopName: true }
+    });
+
+    const shopName = shop?.shopName || "Our Shop";
+    const finalMessage = `${message}\n\n- ${shopName}`;
+
+    await sendSms(to, finalMessage);
+
+    res.status(200).json({ success: true, message: "SMS sent successfully" });
+  } catch (error: any) {
+    logger.error(`[sendStandardSms] Error: ${error.message}`);
+    res.status(500).json({ success: false, message: "Failed to send SMS" });
+  }
+};

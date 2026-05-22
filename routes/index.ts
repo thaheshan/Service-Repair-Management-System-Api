@@ -25,6 +25,7 @@ import {
   sendVerification as sendShopVerification,
 } from "@/controllers/shop.controller";
 import taskRouter from "@/routes/task.routes";
+import smsRouter from "@/routes/sms.routes";
 
 const router = Router();
 
@@ -65,5 +66,6 @@ router.use("/v1/appointments", appointmentsRouter);
 router.use("/v1/reports", reportsRouter);
 
 router.use("/v1/tasks", taskRouter);
+router.use("/v1/sms", smsRouter);
 
 export default router;
