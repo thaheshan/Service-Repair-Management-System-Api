@@ -98,7 +98,7 @@ export const updateTenantRepair = async (
   try {
     const oldRepair = await prisma.repair.findFirst({ 
       where: { id }, 
-      include: { customer: true, device: true, shop: { select: { name: true } } } 
+      include: { customer: true, device: true, shop: { select: { name: true, address: true, city: true, phone: true } } } 
     });
     
     // Extract autoUpdateCustomer from data so it doesn't try to update it in the DB
@@ -120,7 +120,10 @@ export const updateTenantRepair = async (
           const statusText = updateData.status.replace(/_/g, " ");
           const deviceName = oldRepair.device ? `${oldRepair.device.brand} ${oldRepair.device.model}` : "your device";
           const issue = oldRepair.issue ? ` (${oldRepair.issue})` : "";
-          const message = `Hi ${oldRepair.customer.name},\nYour repair task (${ref}) for ${deviceName}${issue} status has been updated to: ${statusText}.\n\nThank you for choosing ${shopName}!`;
+          const addressParts = [oldRepair.shop?.address, oldRepair.shop?.city].filter(Boolean).join(", ");
+          const shopContact = oldRepair.shop?.phone ? ` | Tel: ${oldRepair.shop.phone}` : "";
+          const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+          const message = `Hi ${oldRepair.customer.name},\nYour repair task (${ref}) for ${deviceName}${issue} status has been updated to: ${statusText}.${shopFooter}`;
           
           await sendSms(oldRepair.customer.phone, message).catch((err) => {
             console.error("Failed to send SMS:", err);
