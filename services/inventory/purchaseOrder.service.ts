@@ -41,7 +41,8 @@ export const createPurchaseOrder = async (
 
   if (po.supplier?.phone) {
     const shopName = po.shop?.name || "Our Shop";
-    const message = `Hello ${po.supplier.name},\nA new Purchase Order (${po.orderNumber}) has been created by ${shopName}.\nTotal Amount: Rs. ${totalAmount}\n\nPlease check your email/portal for full details.`;
+    const itemList = po.items.map(item => `${item.quantity}x ${item.partName}`).join(", ");
+    const message = `Hello ${po.supplier.name},\nA new Purchase Order (${po.orderNumber}) has been created by ${shopName}.\nItems: ${itemList}\nTotal Amount: Rs. ${totalAmount}\n\nPlease check your email/portal for full details.`;
     await sendSms(po.supplier.phone, message).catch(err => {
       console.error("Non-fatal: Failed to send SMS for PO creation:", err);
     });
