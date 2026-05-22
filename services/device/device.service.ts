@@ -236,7 +236,7 @@ export const updateTenantDevice = async (id: string, tenantId: string, data: Dev
       select: deviceWithCustomerSelect,
     });
 
-    if (autoUpdateCustomer && data.status && existing.status !== data.status && device.customer?.phone) {
+    if (autoUpdateCustomer && data.status && device.customer?.phone) {
       const shop = await prisma.shop.findFirst({ where: { id: existing.shopId }, select: { name: true } });
       const shopName = shop?.name || "Our Shop";
       const statusText = data.status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());

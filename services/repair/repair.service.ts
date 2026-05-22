@@ -110,7 +110,7 @@ export const updateTenantRepair = async (
     });
 
     try {
-      if (updateData.status && updateData.status !== oldRepair?.status) {
+      if (updateData.status) {
         await logTimelineEvent(id, 'STATUS_CHANGE', `Status changed from ${oldRepair?.status || 'UNKNOWN'} to ${updateData.status}`);
         
         // Send SMS to customer if requested
