@@ -187,8 +187,8 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
     if (device.customer?.phone) {
       const shopName = shop?.name || "Our Shop";
       const addressParts = [shop?.address, shop?.city].filter(Boolean).join(", ");
-      const shopContact = shop?.phone ? ` | Tel: ${shop.phone}` : "";
-      const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+      const shopContact = shop?.phone ? `\nContact: ${shop.phone}` : "";
+      const shopFooter = `\n${shopName}${addressParts ? `\n${addressParts}` : ""}${shopContact}`;
       const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) has been successfully registered in our system.${shopFooter}`;
       await sendSms(device.customer.phone, message).catch(err => {
         console.error("Non-fatal: Failed to send SMS on device creation:", err);
@@ -244,8 +244,8 @@ export const updateTenantDevice = async (id: string, tenantId: string, data: Dev
       const shopName = shop?.name || "Our Shop";
       const statusText = data.status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
       const addressParts = [shop?.address, shop?.city].filter(Boolean).join(", ");
-      const shopContact = shop?.phone ? ` | Tel: ${shop.phone}` : "";
-      const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+      const shopContact = shop?.phone ? `\nContact: ${shop.phone}` : "";
+      const shopFooter = `\n${shopName}${addressParts ? `\n${addressParts}` : ""}${shopContact}`;
       const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) status has been updated to: ${statusText}.${shopFooter}`;
       
       await sendSms(device.customer.phone, message).catch((err) => {

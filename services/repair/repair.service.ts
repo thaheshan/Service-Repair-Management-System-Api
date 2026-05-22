@@ -121,8 +121,8 @@ export const updateTenantRepair = async (
           const deviceName = oldRepair.device ? `${oldRepair.device.brand} ${oldRepair.device.model}` : "your device";
           const issue = oldRepair.issue ? ` (${oldRepair.issue})` : "";
           const addressParts = [oldRepair.shop?.address, oldRepair.shop?.city].filter(Boolean).join(", ");
-          const shopContact = oldRepair.shop?.phone ? ` | Tel: ${oldRepair.shop.phone}` : "";
-          const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+          const shopContact = oldRepair.shop?.phone ? `\nContact: ${oldRepair.shop.phone}` : "";
+          const shopFooter = `\n${shopName}${addressParts ? `\n${addressParts}` : ""}${shopContact}`;
           const message = `Hi ${oldRepair.customer.name},\nYour repair task (${ref}) for ${deviceName}${issue} status has been updated to: ${statusText}.${shopFooter}`;
           
           await sendSms(oldRepair.customer.phone, message).catch((err) => {
