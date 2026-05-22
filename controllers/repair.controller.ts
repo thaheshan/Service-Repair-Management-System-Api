@@ -76,10 +76,8 @@ export const createRepair = async (req: AuthRequest, res: Response) => {
 export const updateRepair = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { status, issue, diagnosis, estimatedCost, finalCost, technicianId } = req.body;
+    const { status, issue, diagnosis, estimatedCost, finalCost, technicianId, autoUpdateCustomer } = req.body;
     
-    // Only pass fields that are guaranteed to exist in the current database.
-    // NOTE: priority and estimatedCompletionDate require running `npx prisma db push` first.
     const updateData: Record<string, any> = {};
     if (status !== undefined) updateData.status = status;
     if (issue !== undefined) updateData.issue = issue;
@@ -87,6 +85,8 @@ export const updateRepair = async (req: AuthRequest, res: Response) => {
     if (estimatedCost !== undefined) updateData.estimatedCost = estimatedCost;
     if (finalCost !== undefined) updateData.finalCost = finalCost;
     if (technicianId !== undefined) updateData.technicianId = technicianId;
+    // Pass autoUpdateCustomer so the service can send SMS if requested
+    if (autoUpdateCustomer !== undefined) updateData.autoUpdateCustomer = autoUpdateCustomer;
 
     const repair = await updateTenantRepair(id, req.user!.tenantId, updateData);
     
