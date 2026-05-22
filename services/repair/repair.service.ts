@@ -88,25 +88,45 @@ export const createTenantRepair = async (
   return repair;
 };
 
+import { sendSms } from "@/services/notification/notification.service";
+
 export const updateTenantRepair = async (
   id: string,
   tenantId: string,
   data: Record<string, any>
 ) => {
   try {
-    const oldRepair = await prisma.repair.findFirst({ where: { id }, select: { status: true } });
+    const oldRepair = await prisma.repair.findFirst({ 
+      where: { id }, 
+      select: { status: true, customer: true, shop: { select: { shopName: true } }, reference: true } 
+    });
     
+    // Extract autoUpdateCustomer from data so it doesn't try to update it in the DB
+    const { autoUpdateCustomer, ...updateData } = data;
+
     const repair = await prisma.repair.update({
       where: { id },
-      data,
+      data: updateData,
     });
 
     try {
-      if (data.status && data.status !== oldRepair?.status) {
-        await logTimelineEvent(id, 'STATUS_CHANGE', `Status changed from ${oldRepair?.status || 'UNKNOWN'} to ${data.status}`);
+      if (updateData.status && updateData.status !== oldRepair?.status) {
+        await logTimelineEvent(id, 'STATUS_CHANGE', `Status changed from ${oldRepair?.status || 'UNKNOWN'} to ${updateData.status}`);
+        
+        // Send SMS to customer if requested
+        if (autoUpdateCustomer && oldRepair?.customer?.phone) {
+          const shopName = oldRepair.shop?.shopName || "Our Shop";
+          const ref = oldRepair.reference;
+          const statusText = updateData.status.replace(/_/g, " ");
+          const message = `Hi ${oldRepair.customer.name},\nYour repair task (${ref}) status has been updated to: ${statusText}.\n\nThank you for choosing ${shopName}!`;
+          
+          await sendSms(oldRepair.customer.phone, message).catch((err) => {
+            console.error("Failed to send SMS:", err);
+          });
+        }
       }
     } catch (logError) {
-      console.error("Non-fatal: Failed to log timeline event:", logError);
+      console.error("Non-fatal: Failed to log timeline event or send SMS:", logError);
     }
 
     // Synchronize with Invoice (Payment record)
