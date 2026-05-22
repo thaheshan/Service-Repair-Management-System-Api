@@ -98,7 +98,7 @@ export const updateTenantRepair = async (
   try {
     const oldRepair = await prisma.repair.findFirst({ 
       where: { id }, 
-      select: { status: true, customer: true, shop: { select: { shopName: true } }, reference: true } 
+      include: { customer: true, shop: { select: { name: true } } } 
     });
     
     // Extract autoUpdateCustomer from data so it doesn't try to update it in the DB
@@ -115,7 +115,7 @@ export const updateTenantRepair = async (
         
         // Send SMS to customer if requested
         if (autoUpdateCustomer && oldRepair?.customer?.phone) {
-          const shopName = oldRepair.shop?.shopName || "Our Shop";
+          const shopName = oldRepair.shop?.name || "Our Shop";
           const ref = oldRepair.reference;
           const statusText = updateData.status.replace(/_/g, " ");
           const message = `Hi ${oldRepair.customer.name},\nYour repair task (${ref}) status has been updated to: ${statusText}.\n\nThank you for choosing ${shopName}!`;

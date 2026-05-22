@@ -149,7 +149,7 @@ import { sendSms } from "@/services/notification/notification.service";
 export const createTenantDevice = async (tenantId: string, data: DeviceCreateInput) => {
   // Keep tenant boundaries strict by validating related entities first.
   const [shop, customer] = await Promise.all([
-    prisma.shop.findFirst({ where: { id: data.shopId, tenantId }, select: { id: true, shopName: true } }),
+    prisma.shop.findFirst({ where: { id: data.shopId, tenantId }, select: { id: true, name: true } }),
     prisma.customer.findFirst({ where: { id: data.customerId, tenantId }, select: { id: true, shopId: true } }),
   ]);
 
@@ -184,7 +184,7 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
 
     // Send SMS notification
     if (device.customer?.phone) {
-      const shopName = shop.shopName || "Our Shop";
+      const shopName = shop?.name || "Our Shop";
       const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) has been successfully registered in our system.\n\nThank you for choosing ${shopName}!`;
       await sendSms(device.customer.phone, message).catch(err => {
         console.error("Non-fatal: Failed to send SMS on device creation:", err);
