@@ -150,7 +150,7 @@ import { sendSms } from "@/services/notification/notification.service";
 export const createTenantDevice = async (tenantId: string, data: DeviceCreateInput) => {
   // Keep tenant boundaries strict by validating related entities first.
   const [shop, customer] = await Promise.all([
-    prisma.shop.findFirst({ where: { id: data.shopId, tenantId }, select: { id: true, name: true } }),
+    prisma.shop.findFirst({ where: { id: data.shopId, tenantId }, select: { id: true, name: true, address: true, city: true, phone: true } }),
     prisma.customer.findFirst({ where: { id: data.customerId, tenantId }, select: { id: true, shopId: true } }),
   ]);
 
@@ -186,7 +186,10 @@ export const createTenantDevice = async (tenantId: string, data: DeviceCreateInp
     // Send SMS notification
     if (device.customer?.phone) {
       const shopName = shop?.name || "Our Shop";
-      const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) has been successfully registered in our system.\n\nThank you for choosing ${shopName}!`;
+      const addressParts = [shop?.address, shop?.city].filter(Boolean).join(", ");
+      const shopContact = shop?.phone ? ` | Tel: ${shop.phone}` : "";
+      const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+      const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) has been successfully registered in our system.${shopFooter}`;
       await sendSms(device.customer.phone, message).catch(err => {
         console.error("Non-fatal: Failed to send SMS on device creation:", err);
       });
@@ -236,11 +239,14 @@ export const updateTenantDevice = async (id: string, tenantId: string, data: Dev
       select: deviceWithCustomerSelect,
     });
 
-    if (autoUpdateCustomer && data.status && existing.status !== data.status && device.customer?.phone) {
-      const shop = await prisma.shop.findFirst({ where: { id: existing.shopId }, select: { name: true } });
+    if (autoUpdateCustomer && data.status && device.customer?.phone) {
+      const shop = await prisma.shop.findFirst({ where: { id: existing.shopId }, select: { name: true, address: true, city: true, phone: true } });
       const shopName = shop?.name || "Our Shop";
       const statusText = data.status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-      const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) status has been updated to: ${statusText}.\n\nThank you for choosing ${shopName}!`;
+      const addressParts = [shop?.address, shop?.city].filter(Boolean).join(", ");
+      const shopContact = shop?.phone ? ` | Tel: ${shop.phone}` : "";
+      const shopFooter = addressParts ? `\n${shopName}\n${addressParts}${shopContact}` : `\n${shopName}${shopContact}`;
+      const message = `Hi ${device.customer.name},\nYour device (${device.brand} ${device.model}) status has been updated to: ${statusText}.${shopFooter}`;
       
       await sendSms(device.customer.phone, message).catch((err) => {
         console.error("Non-fatal: Failed to send SMS on device status update:", err);
