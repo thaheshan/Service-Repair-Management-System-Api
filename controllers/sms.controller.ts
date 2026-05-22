@@ -14,10 +14,10 @@ export const sendStandardSms = async (req: Request, res: Response) => {
 
     const shop = await prisma.shop.findFirst({
       where: { id: shopId, tenantId },
-      select: { shopName: true }
+      select: { name: true }
     });
 
-    const shopName = shop?.shopName || "Our Shop";
+    const shopName = shop?.name || "Our Shop";
     const finalMessage = `${message}\n\n- ${shopName}`;
 
     await sendSms(to, finalMessage);
