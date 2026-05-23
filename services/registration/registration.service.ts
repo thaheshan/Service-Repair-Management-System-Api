@@ -78,9 +78,9 @@ export const finalizeRegistration = async (requestId: string, paymentIntentId: s
   if (!request) throw { status: 404, message: "Request not found" };
   if (request.status !== "APPROVED") throw { status: 400, message: "Request must be approved before payment" };
 
-  // Verify Stripe Status (Bypass in TEST mode)
-  if (process.env.PAYMENT_MODE === 'TEST') {
-    logger.info(`[RegistrationService] MOCK PAYMENT VERIFIED for request: ${requestId}`);
+  // Verify Stripe Status (Bypass in TEST mode or for PayHere/manual payments)
+  if (process.env.PAYMENT_MODE === 'TEST' || paymentIntentId.startsWith('PAYHERE_') || paymentIntentId.startsWith('BANK_')) {
+    logger.info(`[RegistrationService] Payment bypass verified for request: ${requestId} via ${paymentIntentId}`);
   } else {
     const isPaid = await verifyPaymentIntent(paymentIntentId, requestId);
     if (!isPaid) throw { status: 400, message: "Payment not verified" };
@@ -185,6 +185,25 @@ export const getAllRegistrationRequests = async (status?: string) => {
     where: status ? { status: status as any } : {},
     orderBy: { createdAt: "desc" }
   });
+};
+
+export const rejectRegistrationRequest = async (token: string) => {
+  logger.info(`[RegistrationService] Rejecting request with token: ${token}`);
+
+  const request = await prisma.registrationRequest.findUnique({
+    where: { approvalToken: token }
+  });
+
+  if (!request) throw { status: 404, message: "Registration request not found" };
+  if (request.status === "COMPLETED") throw { status: 400, message: "Request is already COMPLETED" };
+  if (request.status === "REJECTED") throw { status: 400, message: "Request is already REJECTED" };
+
+  await prisma.registrationRequest.update({
+    where: { id: request.id },
+    data: { status: "REJECTED" }
+  });
+
+  return { message: "Registration request rejected successfully" };
 };
 
 export const resendAdminApprovalEmail = async (id: string) => {

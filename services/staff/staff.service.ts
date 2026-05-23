@@ -208,6 +208,7 @@ export const createStaffMember = async (
         fullName: data.name,
         phone: data.phone?.trim() ? data.phone.trim() : null,
         staffDisplayId,
+        isActive: true,
       } as any,
     });
   } catch (error: any) {
