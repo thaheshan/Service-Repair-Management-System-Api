@@ -18,6 +18,7 @@ import reportsRouter from "@/routes/reports.routes";
 import adminRouter from "@/routes/admin.routes";
 import invoicesRouter from "@/routes/invoices.routes";
 import appointmentsRouter from "@/routes/appointments.routes";
+import uploadsRouter from "@/routes/uploads.routes";
 import {
   verifyEmail,
   generateShopIds,
@@ -64,6 +65,7 @@ router.use("/v1/dashboard", dashboardRouter);
 router.use("/v1/invoices", invoicesRouter);
 router.use("/v1/appointments", appointmentsRouter);
 router.use("/v1/reports", reportsRouter);
+router.use("/v1/uploads", uploadsRouter);
 
 router.use("/v1/tasks", taskRouter);
 router.use("/v1/sms", smsRouter);

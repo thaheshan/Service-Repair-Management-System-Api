@@ -26,9 +26,10 @@ export const getTenantRepairById = async (id: string, tenantId: string) => {
       device: true, 
       technician: { select: { id: true, email: true, fullName: true, role: true } }, 
       notes: { include: { user: { select: { id: true, fullName: true } } }, orderBy: { createdAt: 'desc' } },
-      timeline: { orderBy: { createdAt: 'desc' } }
+      timeline: { orderBy: { createdAt: 'desc' } },
+      photos: { orderBy: { createdAt: 'asc' } },
+      repairPartsUsed: { include: { part: true } }
     },
-
   });
 
   if (!repair) {
@@ -53,17 +54,33 @@ export const createTenantRepair = async (
     finalCost?: number;
     technicianId?: string;
     status?: any;
+    photoUrls?: string[];
   }
 ) => {
   const reference = `REP-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)}`;
   
+  // Extract photoUrls before saving (not a DB column on Repair)
+  const { photoUrls, ...repairData } = data;
+
   const repair = await prisma.repair.create({
     data: { 
       tenantId, 
       reference,
-      ...data 
+      ...repairData 
     },
   });
+
+  // Save photos to Photo table
+  if (photoUrls && photoUrls.length > 0) {
+    await prisma.photo.createMany({
+      data: photoUrls.map((url: string) => ({
+        tenantId,
+        repairId: repair.id,
+        url,
+        stage: 'INTAKE',
+      }))
+    });
+  }
 
   await logTimelineEvent(repair.id, 'CREATED', `Repair created with status ${data.status || 'NOT_STARTED'}`);
 

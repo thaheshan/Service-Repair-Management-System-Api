@@ -49,7 +49,7 @@ export const getRepairById = async (req: AuthRequest, res: Response) => {
 
 export const createRepair = async (req: AuthRequest, res: Response) => {
   try {
-    const { shopId, customerId, deviceId, issue, internalNotes, priority, estimatedCompletionDate, estimatedCost, technicianId } = req.body;
+    const { shopId, customerId, deviceId, issue, internalNotes, priority, estimatedCompletionDate, estimatedCost, technicianId, photoUrls } = req.body;
     if (!shopId || !customerId || !deviceId)
       return res.status(400).json({ success: false, message: "shopId, customerId and deviceId are required" });
     const repair = await createTenantRepair(req.user!.tenantId, {
@@ -62,6 +62,7 @@ export const createRepair = async (req: AuthRequest, res: Response) => {
       estimatedCompletionDate: estimatedCompletionDate ? new Date(estimatedCompletionDate) : undefined,
       estimatedCost,
       technicianId,
+      photoUrls,
     });
     
     // Invalidate dashboard analytics cache
