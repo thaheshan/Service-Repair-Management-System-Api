@@ -36,16 +36,32 @@ export const invoiceSummary = async (req: Request, res: Response) => {
 
 // POST /api/v1/invoices
 export const addInvoice = async (req: Request, res: Response) => {
-  const auth = (req as AuthRequest).user!;
-  const { repairId, customerId, amount, paymentMethod, paymentType, status, notes, transactionReference } = req.body;
-
-  if (!amount || !paymentMethod || !paymentType) {
-    return res.status(400).json({ success: false, message: "amount, paymentMethod, and paymentType are required" });
-  }
-
-  const dbStatus = status === 'Paid' ? 'COMPLETED' : status || 'PENDING';
-
   try {
+    const auth = (req as AuthRequest).user!;
+    const { repairId, customerId, amount, paymentMethod = "CASH", paymentType = "FULL", status, notes, transactionReference } = req.body;
+
+    if (!amount) {
+      logger.warn(`[addInvoice] -> Missing amount for tenant: ${auth.tenantId}`);
+      return res.status(400).json({ success: false, message: "amount is required" });
+    }
+
+    // Map user-friendly status names to database values
+    // "Paid" -> "COMPLETED", "Overdue" -> "OVERDUE", otherwise use as-is or default to "PENDING"
+    let dbStatus = "PENDING";
+    if (status) {
+      const statusUpper = status.toUpperCase();
+      if (statusUpper === "PAID") dbStatus = "COMPLETED";
+      else if (statusUpper === "OVERDUE") dbStatus = "OVERDUE";
+      else if (statusUpper === "COMPLETED") dbStatus = "COMPLETED";
+      else if (statusUpper === "FAILED") dbStatus = "FAILED";
+      else if (statusUpper === "PENDING") dbStatus = "PENDING";
+      else dbStatus = status; // Pass through for validation by service
+    }
+
+    logger.info(
+      `[addInvoice] -> Creating invoice for tenant: ${auth.tenantId}, status: ${dbStatus}`
+    );
+
     const invoice = await createInvoice(auth.tenantId, {
       shopId: auth.shopId!,
       repairId,
@@ -61,9 +77,12 @@ export const addInvoice = async (req: Request, res: Response) => {
     // Invalidate dashboard analytics cache
     await invalidateDashboardCache(auth.tenantId, auth.shopId);
 
+    logger.info(`[addInvoice] -> Invoice created successfully: ${invoice.id}`);
     return res.status(201).json({ success: true, invoice });
   } catch (error: any) {
-    logger.error(`[addInvoice] -> ${error.message}`);
+    logger.error(
+      `[addInvoice] -> Error: ${error.message}, Stack: ${error.stack}, Status: ${error.status}`
+    );
     return res.status(error.status ?? 500).json({ success: false, message: "Unable to create invoice" });
   }
 };
@@ -74,20 +93,35 @@ export const patchInvoiceStatus = async (req: Request, res: Response) => {
     const auth = (req as AuthRequest).user!;
     const id = req.params.id as string;
     const { status, amount } = req.body;
-    
+
+    // Validate that at least one field is provided
     if (!status && amount === undefined) {
+      logger.warn(`[patchInvoiceStatus] -> Missing status or amount for invoice: ${id}`);
       return res.status(400).json({ success: false, message: "status or amount is required" });
     }
+
+    logger.info(
+      `[patchInvoiceStatus] -> Updating invoice ${id} with status: ${status}, amount: ${amount}`
+    );
 
     const updated = await updateInvoiceStatus(id, auth.tenantId, status, amount ? Number(amount) : undefined);
 
     // Invalidate dashboard analytics cache
     await invalidateDashboardCache(auth.tenantId, auth.shopId);
 
+    logger.info(`[patchInvoiceStatus] -> Successfully updated invoice: ${id}`);
     return res.status(200).json({ success: true, invoice: updated });
   } catch (error: any) {
-    logger.error(`[patchInvoiceStatus] -> ${error.message}`);
-    return res.status(error.status ?? 500).json({ success: false, message: "Unable to update invoice" });
+    // Log the full error details for debugging
+    logger.error(
+      `[patchInvoiceStatus] -> Error: ${error.message}, Stack: ${error.stack}, Status: ${error.status}`
+    );
+
+    // Return appropriate status code (400 for validation, 404 for not found, 500 for server errors)
+    const statusCode = error.status ?? 500;
+    const message = error.message || "Unable to update invoice";
+
+    return res.status(statusCode).json({ success: false, message });
   }
 };
 
